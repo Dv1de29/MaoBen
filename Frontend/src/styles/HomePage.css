@@ -1,0 +1,130 @@
+.home-page{
+    width: 100%;
+    gap: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.stories-container {
+    padding: 0px 10px;
+    width: 100%;
+    height: 10vh; 
+    gap: 10px;
+    background-color: #262626;
+    display: flex;    
+    align-items: center;
+    justify-content: flex-start; 
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+    position: sticky;
+    top: 0;
+}
+
+.stories-container::-webkit-scrollbar {
+    display: none;
+}
+
+.story {
+    width: 3rem;
+    height: 3rem;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.5s ease;
+}
+
+.story:hover{
+    transform: scale(1.25);
+}
+
+.story img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+    border: 2px solid white;
+    box-sizing: border-box; 
+    background-color: white; 
+}
+
+.card-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;   
+    gap: 20px;             
+    
+    max-width: 470px;     
+    width: 100%;
+    margin: 30px auto;     
+}
+
+.card_wrapper{
+    width: 100%;
+    height: 80vh;
+}
+/* 
+.card {
+    width: 100%;   
+    background-color: #2a2a2a;
+    border: 1px solid #dbdbdb;
+    border-radius: 10px;
+    color: white;
+}
+
+
+.card .header {
+    padding: 10px 15px;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.card .title {
+    padding: 10px 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+}
+
+.card .profile-pic {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;  
+    margin-right: 10px;
+    border: 1px solid #dbdbdb;
+}
+
+.card > img {
+    width: 100%;
+    height: auto;
+    display: block;
+    aspect-ratio: 1 / 1; 
+    object-fit: cover;
+    background-color: #eee; 
+}
+
+.card .reactions {
+    padding: 10px 15px;
+    display: flex;
+    gap: 15px;
+}
+
+.card .reactions .react-icons {
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    color: white;
+} */

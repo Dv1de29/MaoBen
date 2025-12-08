@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package.json .
 RUN npm install
 COPY . .
-RUN npm run build
+RUN npm run build 
 
 # Etapa 2: Server Nginx (pentru producție/docker)
 FROM nginx:alpine
