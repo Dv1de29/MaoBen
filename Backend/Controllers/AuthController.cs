@@ -98,7 +98,7 @@ namespace Backend.Controllers
                 Role = roles.FirstOrDefault() ?? "User"
             });
         }
-
+        [NonAction]
         private async Task<string> GenerateJwtToken(ApplicationUser user)
         {
             var jwtSettings = _configuration.GetSection("JwtSettings");
