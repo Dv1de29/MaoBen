@@ -1,8 +1,11 @@
-﻿using Backend.DTOs;   // FIX 1: Matches your folder name 'DTOs'
+﻿using Backend.DTOs;
 using Backend.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 namespace Backend.Controllers
 {
@@ -11,30 +14,24 @@ namespace Backend.Controllers
     public class AuthController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IConfiguration _configuration;
 
-        public AuthController(UserManager<ApplicationUser> userManager)
+        public AuthController(UserManager<ApplicationUser> userManager, IConfiguration configuration)
         {
             _userManager = userManager;
+            _configuration = configuration;
         }
 
         [HttpPost("register")]
-        // FIX 2: Changed 'RegisterDto' to 'RegisterUserDTO' to match your file
         public async Task<IActionResult> Register([FromBody] RegisterUserDTO dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var existingUser = await _userManager.FindByEmailAsync(dto.Email);
-            if (existingUser != null)
-            {
-                return BadRequest(new { message = "Email is already in use." });
-            }
+            if (existingUser != null) return BadRequest(new { message = "Email is already in use." });
 
             var existingUsername = await _userManager.FindByNameAsync(dto.Username);
-            if (existingUsername != null)
-            {
-                return BadRequest(new { message = "Username is already taken." });
-            }
+            if (existingUsername != null) return BadRequest(new { message = "Username is already taken." });
 
             var user = new ApplicationUser
             {
@@ -42,45 +39,93 @@ namespace Backend.Controllers
                 Email = dto.Email,
                 FirstName = dto.FirstName,
                 LastName = dto.LastName,
-                Description = string.Empty,
-                ProfilePictureUrl = string.Empty,
-                IsPrivate = false
             };
             try
             {
-                // 1. ATTEMPT creation
-                // This handles standard logic (Password strength, Duplicate Email, etc.)
                 var result = await _userManager.CreateAsync(user, dto.Password);
+                if (!result.Succeeded) return BadRequest(result.Errors);
 
-                // 2. CHECK Identity Logic Failures
-                // If Identity says "No", we stop here.
-                if (!result.Succeeded)
+                
+                await _userManager.AddToRoleAsync(user, "User");
+
+             
+                var token = await GenerateJwtToken(user);
+
+                
+                return Ok(new AuthResponseDTO
                 {
-                    return BadRequest(result.Errors);
-                }
-
-                // Success!
-                return Ok(user);
-            }
-            catch (DbUpdateException dbEx)
-            {
-                // 3. CATCH Database Constraint Violations
-                // This runs ONLY if the Database actually rejected the SQL command 
-                // (e.g., a custom unique index violation, or a Foreign Key error)
-
-                // Log the error for yourself (optional)
-                // _logger.LogError(dbEx, "Database constraint failed");
-
-                // Return a generic error to the user so you don't leak DB details
-                return BadRequest(new { message = "A database constraint was violated." });
+                    Token = token,
+                    Username = user.UserName!,
+                    ProfilePictureUrl= user.ProfilePictureUrl, 
+                    Role = "User" 
+                });
             }
             catch (Exception ex)
             {
-                // 4. CATCH Everything Else (Server crashed, Null Reference, etc.)
                 return StatusCode(500, new { message = "An internal server error occurred." });
             }
+        }
+
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginUserDTO dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            ApplicationUser? user=null;
+            if (dto.UsernameOrEmail.Contains("@"))
+            { 
+                user = await _userManager.FindByEmailAsync(dto.UsernameOrEmail);
+            }
+            else
+            {
+                user = await _userManager.FindByNameAsync(dto.UsernameOrEmail);
+            }
+
+            if (user == null || !await _userManager.CheckPasswordAsync(user, dto.Password))
+            {
+                return Unauthorized(new { message = "Invalid email/username or password" });
+            }
+
+            var token = await GenerateJwtToken(user);
+
+            var roles = await _userManager.GetRolesAsync(user);
 
 
+            return Ok(new AuthResponseDTO
+            {
+                Token = token,
+                Username = user.UserName!,
+                ProfilePictureUrl = user.ProfilePictureUrl,
+                Role = roles.FirstOrDefault() ?? "User"
+            });
+        }
+
+        private async Task<string> GenerateJwtToken(ApplicationUser user)
+        {
+            var jwtSettings = _configuration.GetSection("JwtSettings");
+            var key = Encoding.ASCII.GetBytes(jwtSettings["Key"]!);
+
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Id),
+                new Claim(ClaimTypes.Name, user.UserName!),
+                new Claim(ClaimTypes.Email, user.Email!)
+            };
+
+            var roles = await _userManager.GetRolesAsync(user);
+            var userRole = roles.FirstOrDefault() ?? "User";
+
+            claims.Add(new Claim(ClaimTypes.Role, userRole));
+
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(claims),
+                Expires = DateTime.UtcNow.AddDays(1),
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            };
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            return tokenHandler.WriteToken(token);
         }
     }
 }
