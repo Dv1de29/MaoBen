@@ -1,0 +1,52 @@
+
+# ========================
+# .NET / C# (Backend)
+# ========================
+# Build results - NU le vrem pe git, se generează automat
+[Bb]in/
+[Oo]bj/
+
+# User-specific files - setări locale ale Visual Studio
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio cache files
+.vs/
+.vscode/
+
+# Environment files & Secrets
+# Păstrează appsettings.json (template-ul), dar ignoră setările locale cu parole
+appsettings.Development.json
+appsettings.Local.json
+
+# Database (SQL LocalDB files - dacă folosești fișiere locale mdf)
+*.mdf
+*.ldf
+
+# ========================
+# REACT / NODE (Frontend)
+# ========================
+# Dependencies (CEL MAI IMPORTANT - sunt mii de fișiere inutile)
+node_modules/
+
+# Production build output
+dist/
+build/
+
+# Local Environment variables
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ========================
+# OS Generated Files
+# ========================
+.DS_Store
+Thumbs.db
