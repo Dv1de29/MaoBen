@@ -4,15 +4,11 @@ namespace Backend.Models
 {
     public class ApplicationUser : IdentityUser
     {
-        public string FirstName { get; set; } = string.Empty;
-        public string LastName { get; set; } = string.Empty;
-
+        public required string FirstName { get; set; }
+        public required string LastName { get; set; }
         public string Description { get; set; } = string.Empty;
-
-        public string ProfilePictureUrl { get; set; } = string.Empty;
-
-        public bool IsPrivate { get; set; } = false;
-
+        public string ProfilePictureUrl { get; set; } = string.Empty; //ar trebui sa punem o ruta de la poza default aici
+        public bool Privacy { get; set; } = false;
         public string FullName => $"{FirstName} {LastName}";
     }
 }
