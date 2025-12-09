@@ -11,7 +11,7 @@ const INITIAL_USER: UserSettingsType = {
     userName: "coding_wizard",
     name: "John Doe",
     description: "Full stack developer | Coffee enthusiast",
-    profile_image: "https://via.placeholder.com/150"
+    profile_image: "/assets/img/download.jpg"
 };
 
 const EditProfilePage = () => {
@@ -53,20 +53,10 @@ const EditProfilePage = () => {
                 {/* Image Section */}
                 <div className="image-section">
                     <img 
-                        src={formData.profile_image || "https://via.placeholder.com/150"} 
+                        src={formData.profile_image} 
                         alt="Preview" 
                         className="preview-img"
-                    />
-                    <div className="input-group">
-                        <label>Profile Image URL</label>
-                        <input 
-                            type="text" 
-                            name="profile_image"
-                            value={formData.profile_image}
-                            onChange={handleChange}
-                            placeholder="https://..."
-                        />
-                    </div>
+                    />  
                 </div>
 
                 {/* Name Section */}
