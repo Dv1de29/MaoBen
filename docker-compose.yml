@@ -21,7 +21,7 @@ services:
     depends_on:
       - db
     environment:
-      - ConnectionStrings__DefaultConnection=Server=db;Database=ProiectDb;User Id=sa;Password=FiloDavid!;TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Server=db;Database=ProiectDB;User Id=sa;Password=FiloDavid!;TrustServerCertificate=True;
 
   # 3. Frontend React
   frontend:

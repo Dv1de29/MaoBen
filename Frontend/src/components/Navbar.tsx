@@ -4,10 +4,11 @@ import { Link } from "react-router-dom";
 function NavBar(){
 
     /// this is how i simulate a user existing in localstorage
-    localStorage.setItem("userImagePath", "./assets/img/download.jpg")
+    sessionStorage.setItem("userImagePath", "/assets/img/download.jpg")
+    // localStorage.setItem("userName", "Mr_Orange");
 
-    const userImage: string | null = localStorage.getItem("userImagePath");
-    const userName: string | null = localStorage.getItem("userNmae");
+    const userImage: string | null = sessionStorage.getItem("userImagePath");
+    const userName: string | null = sessionStorage.getItem("userName");
 
     console.log(userImage)
 

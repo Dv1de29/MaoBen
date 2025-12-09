@@ -1,6 +1,12 @@
-﻿namespace Backend.Controllers
+
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Backend.Controllers
 {
-    public class PostsController
+    [Route("api/[controller]")]
+    [ApiController]
+    public class PostsController : ControllerBase
     {
     }
 }
