@@ -1,6 +1,10 @@
 
-﻿using Microsoft.AspNetCore.Http;
+using Backend.Data;
+using Backend.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 
 namespace Backend.Controllers
 {
@@ -8,5 +12,66 @@ namespace Backend.Controllers
     [ApiController]
     public class PostsController : ControllerBase
     {
+        private readonly AppDbContext _context;
+        private readonly int MaxPostsLimit = 50;
+
+        public PostsController(AppDbContext context) {
+            _context = context;
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetPostID(int id)
+        {
+            var post = await _context.Posts
+                                    .Include(p => p.User)
+                                    .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (post == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(post);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetRecentPosts([FromQuery] int count = 20)
+        {
+            int limit = Math.Min(count, MaxPostsLimit);
+
+            var posts = await _context.Posts
+                .Include(p => p.User)
+                .OrderByDescending(p => p.Id)
+                .Take(limit)
+                .ToListAsync();
+
+            if (posts == null || !posts.Any())
+            {
+                return NoContent();
+            }
+
+            return Ok(posts);
+        }
+
+        [HttpGet("ByOwner/{ownerId}")]
+        public async Task<IActionResult> GetPostsByOwnerId(string ownerId)
+        {
+            if (string.IsNullOrEmpty(ownerId))
+            {
+                return BadRequest("Owner ID cannot be empty.");
+            }
+
+            var posts = await _context.Posts
+                .Include(p => p.User)
+                .Where(p => p.OwnerID == ownerId)
+                .OrderByDescending(p => p.Id)
+                .ToListAsync();
+
+            if (posts == null || !posts.Any()){ 
+                return NoContent();
+            }
+
+            return Ok(posts);
+        }
     }
 }
