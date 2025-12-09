@@ -17,8 +17,6 @@
 
 # Environment files & Secrets
 # Păstrează appsettings.json (template-ul), dar ignoră setările locale cu parole
-appsettings.Development.json
-appsettings.Local.json
 
 # Database (SQL LocalDB files - dacă folosești fișiere locale mdf)
 *.mdf
