@@ -24,15 +24,15 @@ function Layout(){
                         <Route path='/' element={<HomePage />}></Route>
                         <Route path='/login' element={<LoginPage />}></Route>
                         <Route path='/register' element={<RegisterPage />}></Route>
-                        {/* Matches /profile (e.g. current user) */}
-                        <Route path='/profile' element={<ProfilePage />}>
-                            <Route path='edit' element={<EditProfilePage />} />
-                        </Route>
 
-                        {/* Matches /profile/123 (specific user) */}
-                        <Route path='/profile/:id' element={<ProfilePage />}>
-                            <Route path='edit' element={<EditProfilePage />} />
+                        <Route path='/profile' element={<ProfilePage />}>
                         </Route>
+                        <Route path='/profile/edit' element={<EditProfilePage />} />
+
+                        <Route path='/profile/:id' element={<ProfilePage />}>
+                        </Route>
+                        <Route path='/profile/:id/edit' element={<EditProfilePage />} />
+                        
                         <Route path='*' element={<NotFound />}></Route>
                     </Routes>
                 </main>

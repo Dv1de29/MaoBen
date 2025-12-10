@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { type ChangeEvent, type FormEvent } from 'react';
 
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import UserIcon from '../assets/svg/user-icon.svg'
 import OpenLock from '../assets/svg/lock-open-icon.svg'
@@ -11,8 +11,11 @@ import CloseLock from '../assets/svg/lock-close-icon.svg'
 import '../styles/LoginPage.css';
 
 function LoginPage() {
+    const navigate = useNavigate();
+
+
     const [formData, setFormData] = useState({
-        email: '',
+        usernameOrEmail: '',
         password: ''
     });
 
@@ -28,7 +31,37 @@ function LoginPage() {
 
     const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        alert('Login Submitted: Unde e baza de date Ionute');
+        // alert('Login Submitted: Unde e baza de date Ionute');
+
+        const fetchLog = async () => {
+            
+            try{
+                const res = await fetch("http://localhost:5000/api/auth/login", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if ( !res.ok ) {
+                    throw new Error(`Response not ok: ${res.status}, ${res.statusText}`)
+                }
+
+                const data = await res.json();
+
+                sessionStorage.setItem("userToken", data.token)
+                sessionStorage.setItem("userName", data.username)
+                sessionStorage.setItem("userRole", data.role);
+
+                navigate("/");
+
+            } catch(e){
+                console.log("Login failed:", e)
+            }
+        }
+
+        fetchLog();
     };
 
     return (
@@ -44,9 +77,9 @@ function LoginPage() {
                             <input 
                             type="email" 
                             id="email" 
-                            name="email" 
+                            name="usernameOrEmail" 
                             placeholder="user@example.com"
-                            value={formData.email} 
+                            value={formData.usernameOrEmail} 
                             onChange={handleChange} 
                             required 
                             />

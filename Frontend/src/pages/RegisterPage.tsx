@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { type ChangeEvent, type FormEvent } from 'react';
 
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import UserIcon from '../assets/svg/user-icon.svg'
 import OpenLock from '../assets/svg/lock-open-icon.svg'
@@ -11,10 +11,15 @@ import CloseLock from '../assets/svg/lock-close-icon.svg'
 import '../styles/LoginPage.css';
 
 function RegisterPage() {
+    const navigate = useNavigate();
+
     const [formData, setFormData] = useState({
+        firstName: 'Ionut',
+        lastName: 'CuPulaMica',
+        username: '',
         email: '',
         password: '',
-        password_check: '',
+        confirmPassword: '',
     });
 
     const [errorMessage, setErrorMessage] = useState({
@@ -48,7 +53,7 @@ function RegisterPage() {
            })
         }
 
-        if ( formData.password !== formData.password_check ){
+        if ( formData.password !== formData.confirmPassword ){
             ok = false;
             setErrorMessage(prev => {
             return {
@@ -72,7 +77,30 @@ function RegisterPage() {
             return;
         }
 
-        alert('Login Submitted: Unde e baza de date Ionute');
+        // alert('Login Submitted: Unde e baza de date Ionute');
+        const fetchReg = async () => {
+            try{
+                const res = await fetch("http://localhost:5000/api/auth/register", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                console.log(formData)
+
+                if ( !res.ok ) {
+                    throw new Error(`Response not ok: ${res.status}, ${res.statusText}`)
+                }
+
+                navigate("/login")
+            } catch(e){
+                console.log("Register failed:", e)
+            }
+        }
+
+        fetchReg();
     };
 
     return (
@@ -82,6 +110,22 @@ function RegisterPage() {
                 <p className="login-subtitle">Please enter your details to sign in.</p>
                 
                 <form onSubmit={handleSubmit}>
+                    <div className="form-group">
+                        <label htmlFor="username">Username</label>
+                        <div className="input-container">
+                            <input 
+                            type="text" 
+                            id="username" 
+                            name="username" 
+                            placeholder="Username"
+                            value={formData.username} 
+                            onChange={handleChange} 
+                            required 
+                            />
+                            <img src={UserIcon} alt="" />
+                        </div>
+                        <span id="message-error">{errorMessage.emailMessage}</span>
+                    </div>
                     <div className="form-group">
                         <label htmlFor="email">Email Address</label>
                         <div className="input-container">
@@ -124,10 +168,10 @@ function RegisterPage() {
                         <div className="input-container">
                             <input 
                             type={showPassCheck ? "text" : "password"} 
-                            id="password-check" 
-                            name="password_check" 
+                            id="confirmPassword" 
+                            name="confirmPassword" 
                             placeholder="••••••••"
-                            value={formData.password_check} 
+                            value={formData.confirmPassword} 
                             onChange={handleChange} 
                             required 
                             />
