@@ -53,6 +53,7 @@ function LoginPage() {
                 sessionStorage.setItem("userToken", data.token)
                 sessionStorage.setItem("userName", data.username)
                 sessionStorage.setItem("userRole", data.role);
+                sessionStorage.setItem("userId", data.id);
 
                 navigate("/");
 

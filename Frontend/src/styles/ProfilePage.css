@@ -265,6 +265,14 @@
   opacity: 0.8; 
 }
 
+.no-posts-container{
+    width: 100%;
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
 /* --- Responsive (Mobile) --- */
 @media (max-width: 768px) {
   .profile-header {

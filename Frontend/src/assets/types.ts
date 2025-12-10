@@ -24,3 +24,15 @@ export interface UserProfileType{
     nr_following: number,
     posts: PostType[],
 }
+
+
+// Define this alongside PostType or in a dedicated types file
+
+export interface PostApiType {
+    id: number;
+    owner: string;
+    image_path: string; // Matches 'img_path' in your client PostType
+    nr_likes: number;
+    nr_comms: number; // Matches 'nr_comm' in your client PostType
+    // The API response likely contains other fields, but these are the ones you use
+}

@@ -3,7 +3,7 @@ import '../styles/ProfilePage.css'; // Assuming a CSS file for styles
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCog, faArrowLeft, faGlobe, faPlus, faTh, faBookmark, faUserTag } from '@fortawesome/free-solid-svg-icons';
 
-import type { UserProfileType } from '../assets/types';
+import type { PostType, PostApiType, UserProfileType } from '../assets/types';
 
 
 
@@ -14,6 +14,8 @@ import highlight3 from '../assets/images/download.jpg';
 import highlight4 from '../assets/images/download.jpg';
 
 import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+
 
 
 
@@ -22,8 +24,7 @@ import { useNavigate } from 'react-router-dom';
 const ProfilePage = () => {
     const navigate = useNavigate()
 
-
-    const user: UserProfileType = {
+    const initial_user: UserProfileType = {
         id: 1,
         userName: "david._florian",
         name: "David",
@@ -49,6 +50,56 @@ const ProfilePage = () => {
         ],
     }
 
+    const [posts, setPosts] = useState<PostType[]>([]);
+    const [user, SetUser] = useState<UserProfileType>(initial_user)
+
+    const userToken = sessionStorage.getItem("userToken");
+    const userRole = sessionStorage.getItem("userRole");
+    const userName = sessionStorage.getItem("userName");
+    const userId: string = "";
+
+    //fetching my User + Posts
+    useEffect(() => {
+        const fetchMyPosts = async (uid: string) => {
+            try{
+                const res = await fetch(`http://localhost:5000/api/posts/ByOwner/${uid}`)
+        
+                if ( !res.ok ){
+                    throw new Error(`Response error: ${res.status},${res.statusText}`)
+                }
+    
+                const data = await res.json();
+    
+                const transformedPosts = data.map((postData: PostApiType) => {
+                    return{
+                        id: postData.id,
+                        owner: postData.owner,
+                        img_path: postData.image_path,
+                        nr_likes: postData.nr_likes,
+                        nr_comm: postData.nr_comms,
+                        has_liked: false,
+                    }
+                });
+    
+                setPosts(transformedPosts);
+    
+            } catch(e){
+                console.error("Error at loading my posts: ", e)
+            }
+        }
+
+        const uid = sessionStorage.getItem("userId");
+
+        if ( !uid ){
+            console.error("NO USER ID");
+            return;
+        }
+
+        fetchMyPosts(uid);
+        
+
+    }, [])
+
 
     return (
         <div className="profile-page dark-mode">
@@ -66,7 +117,7 @@ const ProfilePage = () => {
             <div className="profile-info">
             <div className="stats">
                 <div className="stat">
-                <span className="count">{user.posts.length}</span> postări
+                <span className="count">{posts.length}</span> postări
                 </div>
                 <div className="stat">
                 <span className="count">{user.nr_followers}</span> de urmăritori
@@ -117,11 +168,14 @@ const ProfilePage = () => {
             <button className="tab"><FontAwesomeIcon icon={faUserTag} /></button>
         </div>
 
+            {posts.length === 0 && (
+                <div className="no-posts-container">
+                    <span>This user has no posts</span>
+                </div>
+            )}
         <div className="photo-grid">
-            {user.posts.map(post => (
-                <>
-                    <div className="grid-item"><img src={post.img_path} alt="Post 1" /></div>
-                </>
+            {posts.map(post => (
+                <div className="grid-item" key={post.id}><img src={post.img_path} alt="Post 1" /></div>
             ))}
         </div>
         </div>

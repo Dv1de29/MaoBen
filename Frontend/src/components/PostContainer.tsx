@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
-import type { PostType } from "../assets/types";
+import { useCallback, useEffect, useState } from "react";
+import type { PostType, PostApiType } from "../assets/types";
 import Post from "./Post";
 
 
@@ -29,6 +29,40 @@ function PostContainer(){
             }
         }
     }));
+
+    
+
+    useEffect(() => {
+        const fetchMyPosts = async () => {
+            try{
+                const res = await fetch("http://localhost:5000/api/posts/?count=10")
+    
+                if ( !res.ok ){
+                    throw new Error(`Response error: ${res.status},${res.statusText}`)
+                }
+
+                const data = await res.json();
+
+                const transformedPosts = data.map((postData: PostApiType) => {
+                    return{
+                        id: postData.id,
+                        owner: postData.owner,
+                        img_path: postData.image_path,
+                        nr_likes: postData.nr_likes,
+                        nr_comm: postData.nr_comms,
+                        has_liked: false,
+                    }
+                });
+
+                setPosts(transformedPosts);
+
+            } catch(e){
+                console.error("Error at loading my posts: ", e)
+            }
+        }
+
+        fetchMyPosts();
+    }, [])
 
 
     const handleLike = useCallback((id: number) => {

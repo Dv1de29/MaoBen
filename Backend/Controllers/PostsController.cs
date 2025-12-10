@@ -67,9 +67,11 @@ namespace Backend.Controllers
                 .OrderByDescending(p => p.Id)
                 .ToListAsync();
 
-            if (posts == null || !posts.Any()){ 
-                return NoContent();
-            }
+
+            // DACA NU SE GASESC POSTARI, RETURNEZ O LISTA GOALA
+            //if (posts == null || !posts.Any()){ 
+            //    return new List<Posts>();
+            //}
 
             return Ok(posts);
         }
