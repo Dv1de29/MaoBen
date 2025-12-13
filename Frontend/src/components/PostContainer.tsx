@@ -9,10 +9,12 @@ interface PostContainerProsp{
 
 
 
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// REMEMBER THAT I MUST ADD THE USER INFO FOR EACH POST tO HAVE it UPPPP
 
-// STILL ISNT WORKING AS INTENDED
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
 
 function PostContainer(){
     const [posts, setPosts] = useState<PostType[]>([]);

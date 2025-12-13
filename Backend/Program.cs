@@ -96,6 +96,8 @@ new string[]{}
 
 var app = builder.Build();
 
+app.UseStaticFiles();
+
 //Activeaza tool-ul de testare a api-urilor doar in development
 if (app.Environment.IsDevelopment())
 {

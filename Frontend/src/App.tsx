@@ -17,15 +17,8 @@ function Layout(){
 
 
     useEffect(() => {
-        
-    console.log(!isLogin)
-    console.log(!sessionStorage.getItem("userToken"))
         if ( !sessionStorage.getItem("userToken") && !isLogin ){
-            console.log(`Entering if with !isLogin: ${!isLogin} and !token: ${!sessionStorage.getItem("userToken")}`)
             navigate("/login");
-        } else {
-            console.log("Not entering")
-            // navigate('/')
         }
     }, [location.pathname])
 

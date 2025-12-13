@@ -131,7 +131,7 @@ const ProfilePage = () => {
 
         <div className="profile-header">
             <div className="profile-pic-container">
-            <img src={profilePic} alt="" className="profile-pic" />
+            <img src={user.profilePictureUrl} alt="" className="profile-pic" />
             <div className="notification-badge">Bun si tu Ionute</div>
             </div>
             <div className="profile-info">

@@ -24,6 +24,9 @@ const EditProfilePage = () => {
         privacy: false,
     });
 
+    const [uploading, setUploading] = useState(false);
+    const originalImageUrlRef = useRef(INITIAL_USER.profile_image);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
 
@@ -47,13 +50,17 @@ const EditProfilePage = () => {
 
                 const data: UserProfileApiType = await res.json();
 
+                const profileImgPath = data.profilePictureUrl ? data.profilePictureUrl : '/assets/img/no_user.png';
+
+                originalImageUrlRef.current = profileImgPath;
+
                 setFormData({
                     userName: data.username,
                     name: "Test Name",
                     description: data.description,
-                    profile_image: data.profilePictureUrl ? data.profilePictureUrl : '/assets/img/no_user.png',
+                    profile_image: profileImgPath,
                     privacy: data.privacy,
-                })
+                });
 
             } catch(e){
                 console.error("Error fetching: ", e);
@@ -75,15 +82,16 @@ const EditProfilePage = () => {
 
     /// Import an image
     const handleImageClick = () => {
-        if ( fileInputRef.current ){
+        if ( !uploading && fileInputRef.current ){
             fileInputRef.current.click();
         }
     }
 
-    const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if ( !file || !file.type.startsWith('image/')) {
             console.log("NO FILE")
+            if ( e.target.value ) e.target.value = "";
             return;
         }
 
@@ -98,10 +106,42 @@ const EditProfilePage = () => {
             }
         })
 
+        setUploading(true);
+
+        const formDataPayload = new FormData();
+        formDataPayload.append('image_path', file)
+
+        try{
+            const token = sessionStorage.getItem("userToken");
+            const res = await fetch("http://localhost:5000/api/Profile/upload_image", {
+                method: "POST",
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formDataPayload
+            });
+
+            if ( !res.ok ){
+                throw new Error(`Error at response: ${res.status}, ${res.statusText}`)
+            }
+
+            const result: { filePath: string } = await res.json();
+
+            setFormData(prev => ({ ...prev, profile_image: result.filePath }));
+
+            console.log("SUCCEDED WIHT PATH", result);
+
+            URL.revokeObjectURL(previewUrl)
+        } catch(e){
+            console.error("Error at fetching: ", e);
+            setFormData(prev => ({ ...prev, profile_image: originalImageUrlRef.current }));
+            URL.revokeObjectURL(previewUrl);
+        } finally{
+            setUploading(false);
+            if (e.target.value) e.target.value = '';
+        }
     }
 
-
-    /// submmit the update
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
         
@@ -118,6 +158,7 @@ const EditProfilePage = () => {
                     body: JSON.stringify({
                         privacy: formData.privacy,
                         description: formData.description,
+                        profilePictureUrl: formData.profile_image,
                     })
                 });
 
@@ -134,9 +175,6 @@ const EditProfilePage = () => {
 
         UpdateUser()
     };
-
-
-
 
     return (
         <div className="edit-profile-container">
@@ -156,6 +194,7 @@ const EditProfilePage = () => {
                         ref={fileInputRef}
                         onChange={handleFileChange}
                         style={{ display: 'none' }}
+                        disabled={uploading}
                     />
                 </div>
 
