@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PostType, PostApiType } from "../assets/types";
 import Post from "./Post";
 
@@ -7,62 +7,107 @@ interface PostContainerProsp{
     posts: PostType[],
 }
 
+
+
+
+// STILL ISNT WORKING AS INTENDED
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 function PostContainer(){
-    const [posts, setPosts] = useState<PostType[]>(Array.from({length: 1000}, (_, i) => {
-        if ( i % 2 == 0 ){
-            return{
-                id: i,
-                owner: "Ben",
-                img_path: "../assets/img/ben1.jpg",
-                nr_likes: 40,
-                has_liked: true,
-                nr_comm: 10, 
-            }
-        } else {
-            return {
-                id: i,
-                owner: "Mr_Orange",
-                img_path: "../assets/img/download.jpg",
-                nr_likes: 40,
-                has_liked: true,
-                nr_comm: 10,
-            }
-        }
-    }));
+    const [posts, setPosts] = useState<PostType[]>([]);
 
-    
+    const [page, setPage] = useState<number>(1);
+    const ITEMS_PER_PAGE = 7;
 
-    useEffect(() => {
-        const fetchMyPosts = async () => {
-            try{
-                const res = await fetch("http://localhost:5000/api/posts/?count=10")
+    const [loading, setLoading] = useState<boolean>(false);
+    const [hasMore, setHasMore] = useState<boolean>(true);
+
+    const observerTargetRef = useRef<HTMLDivElement>(null);
+    const initialLoadRef = useRef(true);
+
+    const fetchMyPosts = useCallback(async () => {
+        if (loading || !hasMore) return;
+        setLoading(true);
+
+        const skipValue = (page - 1) * ITEMS_PER_PAGE;
+
+        try{
+            const res = await fetch(`http://localhost:5000/api/posts/?count=${ITEMS_PER_PAGE}&skip=${skipValue}`)
     
-                if ( !res.ok ){
-                    throw new Error(`Response error: ${res.status},${res.statusText}`)
+            if ( !res.ok ){
+                if ( res.status === 204 || res.status === 404 || res.status === 400){
+                    setHasMore(false)
+                    setLoading(false)
+                    return;
                 }
+                throw new Error(`Response error: ${res.status},${res.statusText}`)
+            }
 
-                const data = await res.json();
+            const data: PostApiType[] = await res.json();
 
-                const transformedPosts = data.map((postData: PostApiType) => {
-                    return{
-                        id: postData.id,
-                        owner: postData.owner,
-                        img_path: postData.image_path,
-                        nr_likes: postData.nr_likes,
-                        nr_comm: postData.nr_comms,
-                        has_liked: false,
-                    }
-                });
+            if (data.length === 0 || data.length < ITEMS_PER_PAGE) {
+                setHasMore(false);
+            }
 
-                setPosts(transformedPosts);
+            const transformedPosts = data.map((postData: PostApiType) => {
+                return{
+                    id: postData.id,
+                    owner: postData.owner,
+                    img_path: postData.image_path,
+                    nr_likes: postData.nr_likes,
+                    nr_comm: postData.nr_comms,
+                    has_liked: false,
+                }
+            });
 
-            } catch(e){
-                console.error("Error at loading my posts: ", e)
+            setPosts(prev => [...prev, ...transformedPosts]);
+            setPage(prev => prev+1);
+
+        } catch(e){
+            console.error("Error at loading my posts: ", e)
+        } finally{
+            setLoading(false);
+        }
+        
+
+    }, [loading, hasMore, page])
+
+    //fetching first set
+    useEffect(() => {
+        if ( initialLoadRef.current){
+            initialLoadRef.current = false;
+            fetchMyPosts();
+        }
+    }, [fetchMyPosts])
+
+    // fetching on intersecting observer
+    useEffect(() => {
+        if ( !observerTargetRef.current || !hasMore ) return;
+
+        const ObserverCall = (entries: IntersectionObserverEntry[]) => {
+            const target = entries[0];
+            if ( target.isIntersecting && !loading && posts.length > 0 && hasMore ){
+                fetchMyPosts();
             }
         }
 
-        fetchMyPosts();
-    }, [])
+        const observer = new IntersectionObserver(ObserverCall, {
+            root: null,
+            rootMargin: '0px',
+            threshold: 1.0,
+        });
+
+        const currentTarget = observerTargetRef.current;
+        if (currentTarget) {
+            observer.observe(currentTarget);
+        }
+
+        return () => {
+            observer.disconnect();
+        }
+
+    }, [loading, hasMore, fetchMyPosts, posts.length]);
 
 
     const handleLike = useCallback((id: number) => {
@@ -88,6 +133,15 @@ function PostContainer(){
                     />
                 </div>
             ))}
+            {hasMore ? (
+                <div className="observer" ref={observerTargetRef} style={{height: 20, textAlign: 'center'}}>
+                    {loading ? 'Loading...' : 'Scroll down'}
+                </div>
+            ) : (
+                <div style={{ textAlign: 'center', padding: '10px', color: '#888' }}>
+                    --- End of Posts ---
+                </div>
+            )}
         </section>
     )
 }

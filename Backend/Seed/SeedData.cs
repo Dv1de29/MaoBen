@@ -14,6 +14,8 @@ namespace Backend.Seed
             // Define the 5 users to be created
             var usersToSeed = new List<UserSeedData>
         {
+            new UserSeedData("David", "Barbu", "david_florian", "david@test.com", "David29!"),
+            new UserSeedData("Ionut", "FIlote", "filote_ionut", "fifi@test.com", "Fifi7cm!"),
             new UserSeedData("Alex", "Popescu", "alex.p", "alex.p@example.com", "SecurePwd1!"),
             new UserSeedData("Maria", "Ionescu", "maria.i", "maria.i@example.com", "SecurePwd2!"),
             new UserSeedData("Ionut", "Vasilescu", "ionut.v", "ionut.v@example.com", "SecurePwd3!"),

@@ -53,7 +53,6 @@ function LoginPage() {
                 sessionStorage.setItem("userToken", data.token)
                 sessionStorage.setItem("userName", data.username)
                 sessionStorage.setItem("userRole", data.role);
-                sessionStorage.setItem("userId", data.id);
 
                 navigate("/");
 
@@ -76,7 +75,7 @@ function LoginPage() {
                         <label htmlFor="email">Email Address</label>
                         <div className="input-container">
                             <input 
-                            type="email" 
+                            type="text" 
                             id="email" 
                             name="usernameOrEmail" 
                             placeholder="user@example.com"

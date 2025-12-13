@@ -44,7 +44,7 @@ body {
 .app-nav span{
     color: white;
     font-size: 2rem;
-    margin-bottom: 20px;
+    /* margin-bottom: 20px; */
 }
 
 .app-nav a {
@@ -55,17 +55,30 @@ body {
 
 .app-nav .profile-link{
     margin-top: auto;
-    height: 10vh;
-    width: 10vh;
+    height: 2vh;
+    width: 100%;
     align-self: flex-end;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    align-items: center;
 }
 
 .app-nav a .profile-link-image{
-    width: 100%;
+    width: 7.5vh;
     height: 100%;
     border-radius: 50%;
     object-fit: cover;
-    display: block;  
+    display: block; 
+    align-self: flex-end; 
+}
+
+.app-nav .profile-link span{
+    height: 100%;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 
