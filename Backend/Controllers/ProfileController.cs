@@ -1,10 +1,11 @@
-﻿using Backend.Models; // Asigură-te că ai namespace-ul corect pentru DTO-uri
+﻿using Backend.Data;
+using Backend.DTOs.ProfileController;
+using Backend.Models; // Asigură-te că ai namespace-ul corect pentru DTO-uri
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using Backend.DTOs;
-using Microsoft.AspNetCore.Hosting;
 namespace Backend.Controllers
 {
     [Route("api/[controller]")]
@@ -14,11 +15,13 @@ namespace Backend.Controllers
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IWebHostEnvironment _webHostEnvironment;
+        private readonly AppDbContext _context;
 
-        public ProfileController(UserManager<ApplicationUser> userManager, IWebHostEnvironment webHostEnvironment)
+        public ProfileController(UserManager<ApplicationUser> userManager, IWebHostEnvironment webHostEnvironment, AppDbContext context)
         {
             _userManager = userManager;
             _webHostEnvironment = webHostEnvironment;
+            _context = context;
         }
 
         private string GenerateRandomId()
@@ -111,23 +114,49 @@ namespace Backend.Controllers
 
             if (user == null) return NotFound("User not found.");
 
-            // Actualizăm câmpurile dorite
-            // NOTĂ: Nu lăsăm userul să schimbe ID-ul sau Username-ul aici, de obicei
-            user.Privacy = dto.Privacy;
-            user.Description=dto.Description;
-            user.ProfilePictureUrl = dto.ProfilePictureUrl;
-            // Exemplu: Dacă vrei să poată schimba și telefonul
-            // user.PhoneNumber = dto.PhoneNumber; 
+            // --- LOGICA PENTRU SCHIMBAREA USERNAME-ULUI ---
 
-            // Salvăm modificările în baza de date
+            // 1. Verificăm dacă userul a trimis un username nou și dacă e diferit de cel curent
+            if (!string.IsNullOrWhiteSpace(dto.Username) && dto.Username != user.UserName)
+            {
+                // 2. Verificăm în baza de date dacă acest nume este deja luat de altcineva
+                var existingUser = await _userManager.FindByNameAsync(dto.Username);
+
+                if (existingUser != null)
+                {
+                    // Numele există deja! Returnăm eroare.
+                    return BadRequest(new { message = $"Numele de utilizator '{dto.Username}' este deja folosit." });
+                }
+
+                // 3. Dacă e liber, îl setăm
+                // Putem folosi SetUserNameAsync sau setare directă + UpdateAsync. 
+                // SetUserNameAsync e mai sigur pentru că actualizează și câmpul NormalizedUserName.
+                var setUserNameResult = await _userManager.SetUserNameAsync(user, dto.Username);
+
+                if (!setUserNameResult.Succeeded)
+                {
+                    return BadRequest(setUserNameResult.Errors);
+                }
+            }
+
+            // --- ACTUALIZAREA CELORLALTE CÂMPURI ---
+            user.Privacy = dto.Privacy;
+            user.Description = dto.Description;
+            user.ProfilePictureUrl = dto.ProfilePictureUrl;
+
+            // Salvăm modificările finale în baza de date
             var result = await _userManager.UpdateAsync(user);
 
             if (result.Succeeded)
             {
-                return Ok(new { message = "Profil actualizat cu succes!" });
+                // Putem returna și noul username în mesaj pentru confirmare
+                return Ok(new
+                {
+                    message = "Profil actualizat cu succes!",
+                    username = user.UserName
+                });
             }
 
-            // Dacă apar erori la salvare
             return BadRequest(result.Errors);
         }
 
@@ -141,11 +170,28 @@ namespace Backend.Controllers
 
             if (user == null) return NotFound("User not found.");
 
+            // --- CURĂȚENIE ÎNAINTE DE ȘTERGERE ---
+
+            // 1. Ștergem relațiile de Follow (Unde userul este Sursă SAU Țintă)
+            var follows = _context.UserFollows
+                .Where(f => f.SourceUserId == userId || f.TargetUserId == userId);
+
+            _context.UserFollows.RemoveRange(follows);
+
+            // NOTĂ: Dacă ai Postări, Comentarii sau Like-uri, trebuie să le ștergi și pe ele AICI!
+            // Exemplu:
+            // var posts = _context.Posts.Where(p => p.UserId == userId);
+            // _context.Posts.RemoveRange(posts);
+
+            // Salvăm ștergerea datelor dependente
+            await _context.SaveChangesAsync();
+
+            // --- ACUM PUTEM ȘTERGE USERUL ---
             var result = await _userManager.DeleteAsync(user);
 
             if (result.Succeeded)
             {
-                return Ok(new { message = "Contul a fost șters definitiv." });
+                return Ok(new { message = "Contul și toate datele asociate au fost șterse." });
             }
 
             return BadRequest(result.Errors);
