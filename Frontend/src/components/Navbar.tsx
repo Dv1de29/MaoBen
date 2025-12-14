@@ -13,6 +13,15 @@ const INITIAL_USER: UserNav = {
     userImage: "",
 }
 
+
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// WHEN THE USER IS CHANGED OUTSIDE THE NAVBAR, THE NAVBAR DOESNT REFETCH
+// I CAN REFRESH THE PAGE BY CODE, BUT IT"S UGLY
+
+/// A GOOD IMPLEMENTATION WOULD BE A GLOBAL STATE INSIDE A PROVIDER THAT HOLDS THE USER
+
 function NavBar(){
 
     /// this is how i simulate a user existing in localstorage
@@ -26,7 +35,7 @@ function NavBar(){
             const token = sessionStorage.getItem("userToken")
 
             try{
-                const res = await fetch("http://localhost:5000/api/Profile", {
+                const res = await fetch("/api/Profile", {
                     method: "GET",
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -42,7 +51,7 @@ function NavBar(){
 
                 setUser({
                     userName: data.username,
-                    userImage: data.profilePictureUrl,
+                    userImage: data.profilePictureUrl || "/assets/img/no_user.png",
                 })
             }catch(e){
                 console.error("Error at fetching: ", e);
@@ -57,7 +66,8 @@ function NavBar(){
             <ul>
                 <li><span>MaoBen</span></li>
                 <li><Link to="/">Home</Link></li>
-                <li><Link to="/login" style={{color: 'red'}}>Login</Link></li>
+                <li><Link to='/create_post'>Create Post</Link></li>
+                <li><Link to="/login" onClick={() => {sessionStorage.clear()}} style={{color: 'red'}}>Log out</Link></li>
                 <li className='profile-link'>
                     <span>{user.userName}</span>
                     <Link to='/profile'>

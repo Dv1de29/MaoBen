@@ -8,6 +8,7 @@ import NavBar from './components/Navbar';
 import ProfilePage from './pages/ProfilePage';
 import NotFound from './pages/NotFound';
 import EditProfilePage from './pages/ProfileEditPage';
+import CreatePostPage from './pages/CreatePostPage';
 
 
 function Layout(){
@@ -31,16 +32,15 @@ function Layout(){
 
                 <main className="app-main">
                     <Routes>
-                        <Route path='/' element={<HomePage />}></Route>
-                        <Route path='/login' element={<LoginPage />}></Route>
-                        <Route path='/register' element={<RegisterPage />}></Route>
+                        <Route path='/' element={<HomePage />} />
+                        <Route path='/login' element={<LoginPage />} />
+                        <Route path='/register' element={<RegisterPage />} />
 
-                        <Route path='/profile' element={<ProfilePage />}>
-                        </Route>
+                        <Route path='/profile' element={<ProfilePage />} />
                         <Route path='/profile/edit' element={<EditProfilePage />} />
+                        <Route path='/profile/:usernmae' element={<ProfilePage />} />
 
-                        <Route path='/profile/:usernmae' element={<ProfilePage />}>
-                        </Route>
+                        <Route path='/create_post' element={<CreatePostPage />} />
                         
                         <Route path='*' element={<NotFound />}></Route>
                     </Routes>

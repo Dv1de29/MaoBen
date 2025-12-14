@@ -36,7 +36,7 @@ const EditProfilePage = () => {
             try{
                 const token = sessionStorage.getItem("userToken");
 
-                const res = await fetch(`http://localhost:5000/api/Profile`, {
+                const res = await fetch(`/api/Profile`, {
                     method: "GET",
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -113,7 +113,7 @@ const EditProfilePage = () => {
 
         try{
             const token = sessionStorage.getItem("userToken");
-            const res = await fetch("http://localhost:5000/api/Profile/upload_image", {
+            const res = await fetch("/api/Profile/upload_image", {
                 method: "POST",
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -149,7 +149,7 @@ const EditProfilePage = () => {
             try{
                 const token = sessionStorage.getItem("userToken");
 
-                const res = await fetch(`http://localhost:5000/api/Profile`, {
+                const res = await fetch(`/api/Profile`, {
                     method: "PUT",
                     headers: {
                         'Authorization': `Bearer ${token}`,

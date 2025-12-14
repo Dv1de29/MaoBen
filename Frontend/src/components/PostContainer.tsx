@@ -35,7 +35,7 @@ function PostContainer(){
         const skipValue = (page - 1) * ITEMS_PER_PAGE;
 
         try{
-            const res = await fetch(`http://localhost:5000/api/posts/?count=${ITEMS_PER_PAGE}&skip=${skipValue}`)
+            const res = await fetch(`/api/posts/?count=${ITEMS_PER_PAGE}&skip=${skipValue}`)
     
             if ( !res.ok ){
                 if ( res.status === 204 || res.status === 404 || res.status === 400){

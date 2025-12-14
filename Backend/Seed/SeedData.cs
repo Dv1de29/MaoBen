@@ -14,13 +14,13 @@ namespace Backend.Seed
             // Define the 5 users to be created
             var usersToSeed = new List<UserSeedData>
         {
-            new UserSeedData("David", "Barbu", "david_florian", "david@test.com", "David29!"),
-            new UserSeedData("Ionut", "FIlote", "filote_ionut", "fifi@test.com", "Fifi7cm!"),
-            new UserSeedData("Alex", "Popescu", "alex.p", "alex.p@example.com", "SecurePwd1!"),
-            new UserSeedData("Maria", "Ionescu", "maria.i", "maria.i@example.com", "SecurePwd2!"),
-            new UserSeedData("Ionut", "Vasilescu", "ionut.v", "ionut.v@example.com", "SecurePwd3!"),
-            new UserSeedData("Elena", "Gheorghe", "elena.g", "elena.g@example.com", "SecurePwd4!"),
-            new UserSeedData("Radu", "Dumitru", "radu.d", "radu.d@example.com", "SecurePwd5!"),
+            new UserSeedData("David", "Barbu", "david_florian", "david@test.com", "David29!", "be_assets/img/ben1.jpg"),
+            new UserSeedData("Ionut", "FIlote", "filote_ionut", "fifi@test.com", "Fifi7cm!", "be_assets/img/ben1.jpg"),
+            new UserSeedData("Alex", "Popescu", "alex.p", "alex.p@example.com", "SecurePwd1!", "be_assets/img/ben1.jpg"),
+            new UserSeedData("Maria", "Ionescu", "maria.i", "maria.i@example.com", "SecurePwd2!", "be_assets/img/ben1.jpg"),
+            new UserSeedData("Ionut", "Vasilescu", "ionut.v", "ionut.v@example.com", "SecurePwd3!", "be_assets/img/ben1.jpg"),
+            new UserSeedData("Elena", "Gheorghe", "elena.g", "elena.g@example.com", "SecurePwd4!", "be_assets/img/ben1.jpg"),
+            new UserSeedData("Radu", "Dumitru", "radu.d", "radu.d@example.com", "SecurePwd5!", "be_assets/img/ben1.jpg"),
         };
 
             foreach (var seedUser in usersToSeed)

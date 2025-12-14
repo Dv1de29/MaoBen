@@ -1,6 +1,9 @@
 
 using Backend.Data;
+using Backend.DTOs;
 using Backend.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,9 +17,18 @@ namespace Backend.Controllers
     {
         private readonly AppDbContext _context;
         private readonly int MaxPostsLimit = 50;
+        private readonly IWebHostEnvironment _webHostEnvironment;
 
-        public PostsController(AppDbContext context) {
+        public PostsController(AppDbContext context, IWebHostEnvironment webHostEnvironment) {
             _context = context;
+            _webHostEnvironment = webHostEnvironment;
+        }
+
+        private string GenerateRandomId()
+        {
+            Random random = new Random();
+            long randomNumber = random.Next(1000000000) + 1000000000L; // Asigur? 10 cifre
+            return randomNumber.ToString();
         }
 
         [HttpGet("{id}")]
@@ -78,6 +90,65 @@ namespace Backend.Controllers
             //}
 
             return Ok(posts);
+        }
+
+        [Authorize]
+        [HttpPost("create_post")]
+        [Consumes("multipart/form-data")]
+        [ApiExplorerSettings(IgnoreApi = true)]
+        public async Task<IActionResult> CreatePost([FromForm] CreatePostDTO dto)
+        {
+            if (dto.Image == null || dto.Image.Length == 0)
+            {
+                return BadRequest("Image is required.");
+            }
+
+            if (!dto.Image.ContentType.StartsWith("image/"))
+            {
+                return BadRequest("File type is wrong and should be: image/");
+            }
+
+            string uniqueId = this.GenerateRandomId();
+            string extension = Path.GetExtension(dto.Image.FileName);
+            string fileName = uniqueId + extension;
+
+            string relativePath = $"/be_assets/img/posts/{fileName}";
+
+            string targetFolder = Path.Combine(_webHostEnvironment.WebRootPath, "be_assets", "img", "posts");
+            string physicalPath = Path.Combine(targetFolder, fileName);
+
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            var newPost = new Posts
+            {
+                Description = dto.Description,
+                Image_path = relativePath,
+                OwnerID = userId,
+                Created = DateTime.UtcNow
+            };
+
+            try
+            {
+                if (!Directory.Exists(targetFolder))
+                {
+                    Directory.CreateDirectory(targetFolder);
+                }
+
+                using (var stream = new FileStream(physicalPath, FileMode.Create))
+                {
+                    await dto.Image.CopyToAsync(stream);
+                }
+
+                _context.Posts.Add(newPost);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Post created!", postId = newPost.Id, imageUrl = relativePath });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    $"Eroare la salvarea postarii: {ex.Message}");
+            }
         }
     }
 }

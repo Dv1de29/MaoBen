@@ -18,7 +18,7 @@ import { useEffect, useState } from 'react';
 
 
 
-
+/// A GOOD IMPLEMENTATION WOULD BE A GLOBAL STATE INSIDE A PROVIDER THAT HOLDS THE USER
 
 
 const ProfilePage = () => {
@@ -45,7 +45,7 @@ const ProfilePage = () => {
     useEffect(() => {
         const fetchMyPosts = async () => {
             try{
-                const res = await fetch(`http://localhost:5000/api/posts/ByOwner/1`)
+                const res = await fetch(`/api/posts/ByOwner/1`)
         
                 if ( !res.ok ){
                     throw new Error(`Response error: ${res.status},${res.statusText}`)
@@ -75,7 +75,7 @@ const ProfilePage = () => {
             try{
                 const token = sessionStorage.getItem("userToken");
 
-                const res = await fetch("http://localhost:5000/api/Profile", {
+                const res = await fetch("/api/Profile", {
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${token}`,

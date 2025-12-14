@@ -19,6 +19,8 @@ function LoginPage() {
         password: ''
     });
 
+    const [error, setError] = useState("");
+
     const [showPass, setShowPass] = useState(false)
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -36,7 +38,7 @@ function LoginPage() {
         const fetchLog = async () => {
             
             try{
-                const res = await fetch("http://localhost:5000/api/auth/login", {
+                const res = await fetch("/api/auth/login", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
@@ -45,7 +47,8 @@ function LoginPage() {
                 });
 
                 if ( !res.ok ) {
-                    throw new Error(`Response not ok: ${res.status}, ${res.statusText}`)
+                    const errorData = await res.json();
+                    throw new Error( errorData.message || `Response not ok: ${res.status}, ${res.statusText}`)
                 }
 
                 const data = await res.json();
@@ -56,8 +59,10 @@ function LoginPage() {
 
                 navigate("/");
 
-            } catch(e){
-                console.log("Login failed:", e)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } catch(e: any){
+                console.error("Login failed:", e)
+                setError(e.toString());
             }
         }
 
@@ -71,6 +76,9 @@ function LoginPage() {
                 <p className="login-subtitle">Please enter your details to sign in.</p>
                 
                 <form onSubmit={handleSubmit}>
+                    {error && (
+                    <div className="error-message" style={{color: 'red', marginBottom: '10px'}}>{error}</div>
+                    )}
                     <div className="form-group">
                         <label htmlFor="email">Email Address</label>
                         <div className="input-container">

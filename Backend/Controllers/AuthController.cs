@@ -80,9 +80,13 @@ namespace Backend.Controllers
                 user = await _userManager.FindByNameAsync(dto.UsernameOrEmail);
             }
 
-            if (user == null || !await _userManager.CheckPasswordAsync(user, dto.Password))
+            if (user == null)
             {
-                return Unauthorized(new { message = "Invalid email/username or password" });
+                return Unauthorized(new { message = "Invalid email/username" });
+            }
+            if (!await _userManager.CheckPasswordAsync(user, dto.Password))
+            {
+                return Unauthorized(new { message = "invalid password" });
             }
 
             var token = await GenerateJwtToken(user);

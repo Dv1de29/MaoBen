@@ -7,6 +7,11 @@
     plugins: [react(), svgr()],
     server: {
         proxy:{
+            '/api': {
+                target: 'http://localhost:5000',
+                changeOrigin: true,
+                secure: false,
+            },
             '/be_assets': {
                 target: 'http://localhost:5000',
                 changeOrigin: true,
