@@ -4,6 +4,7 @@ using Backend.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251210143052_Add_Follows")]
+    partial class Add_Follows
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -114,9 +117,6 @@ namespace Backend.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("Created")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -148,9 +148,8 @@ namespace Backend.Migrations
                         new
                         {
                             Id = 1,
-                            Created = new DateTime(2025, 12, 10, 15, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "First seeded post! Beautiful day for a hike in the mountains. 🌲",
-                            Image_path = "../assets/img/ben1.jpg",
+                            Description = "This is the first seeded post for testing!",
+                            Image_path = "/images/post1.jpg",
                             Nr_Comms = 2,
                             Nr_likes = 15,
                             OwnerID = "1"
@@ -158,192 +157,11 @@ namespace Backend.Migrations
                         new
                         {
                             Id = 2,
-                            Created = new DateTime(2025, 12, 10, 13, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "City lights always make for a perfect evening view. ✨",
-                            Image_path = "../assets/img/ben1.jpg",
+                            Description = "A second post showing off the seeding feature.",
+                            Image_path = "/images/post2.jpg",
                             Nr_Comms = 10,
                             Nr_likes = 50,
-                            OwnerID = "11"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Created = new DateTime(2025, 12, 10, 11, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Tried out a new pasta recipe tonight! Highly recommend! 🍝",
-                            Image_path = "../assets/img/download.jpg",
-                            Nr_Comms = 25,
-                            Nr_likes = 120,
-                            OwnerID = "12"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Created = new DateTime(2025, 12, 10, 10, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "My little furry friend enjoying the sunshine. ☀️",
-                            Image_path = "../assets/img/ben1.jpg",
-                            Nr_Comms = 0,
-                            Nr_likes = 8,
                             OwnerID = "1"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            Created = new DateTime(2025, 12, 10, 8, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Finally finished building my new development setup! Ready to code. 💻",
-                            Image_path = "../assets/img/ben1.jpg",
-                            Nr_Comms = 45,
-                            Nr_likes = 250,
-                            OwnerID = "1"
-                        },
-                        new
-                        {
-                            Id = 6,
-                            Created = new DateTime(2025, 11, 28, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Throwback to that incredible sunset on the beach last month. 🌅",
-                            Image_path = "../assets/img/download.jpg",
-                            Nr_Comms = 5,
-                            Nr_likes = 30,
-                            OwnerID = "11"
-                        },
-                        new
-                        {
-                            Id = 7,
-                            Created = new DateTime(2025, 11, 15, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "A thought-provoking visit to the local art gallery today. 🖼️",
-                            Image_path = "../assets/img/ben1.jpg",
-                            Nr_Comms = 15,
-                            Nr_likes = 90,
-                            OwnerID = "1"
-                        },
-                        new
-                        {
-                            Id = 8,
-                            Created = new DateTime(2025, 10, 30, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Starting the day with a strong cup of coffee. Can't beat it. ☕",
-                            Image_path = "../assets/img/download.jpg",
-                            Nr_Comms = 1,
-                            Nr_likes = 12,
-                            OwnerID = "1"
-                        },
-                        new
-                        {
-                            Id = 9,
-                            Created = new DateTime(2025, 10, 10, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Miss waking up to this view. Best vacation ever! 🌍",
-                            Image_path = "../assets/img/download.jpg",
-                            Nr_Comms = 8,
-                            Nr_likes = 60,
-                            OwnerID = "1"
-                        },
-                        new
-                        {
-                            Id = 10,
-                            Created = new DateTime(2025, 9, 25, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "So excited to announce the launch of my new side project! Link in bio. 🎉",
-                            Image_path = "../assets/img/download.jpg",
-                            Nr_Comms = 35,
-                            Nr_likes = 180,
-                            OwnerID = "12"
-                        },
-                        new
-                        {
-                            Id = 11,
-                            Created = new DateTime(2025, 9, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Just testing the post upload feature. Ignore this! 🛠️",
-                            Image_path = "../assets/img/ben1.jpg",
-                            Nr_Comms = 0,
-                            Nr_likes = 3,
-                            OwnerID = "13"
-                        },
-                        new
-                        {
-                            Id = 12,
-                            Created = new DateTime(2025, 8, 15, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "My little garden is finally blooming! So much hard work paid off. 🌸",
-                            Image_path = "../assets/img/ben1.jpg",
-                            Nr_Comms = 7,
-                            Nr_likes = 45,
-                            OwnerID = "13"
-                        },
-                        new
-                        {
-                            Id = 13,
-                            Created = new DateTime(2025, 7, 20, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Throwback to an amazing concert last summer. What a vibe! 🎶",
-                            Image_path = "../assets/img/download.jpg",
-                            Nr_Comms = 11,
-                            Nr_likes = 70,
-                            OwnerID = "14"
-                        },
-                        new
-                        {
-                            Id = 14,
-                            Created = new DateTime(2025, 6, 5, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Finished this great book today. Definitely worth the read. 📚",
-                            Image_path = "../assets/img/ben1.jpg",
-                            Nr_Comms = 2,
-                            Nr_likes = 15,
-                            OwnerID = "1"
-                        },
-                        new
-                        {
-                            Id = 15,
-                            Created = new DateTime(2025, 5, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "A quiet moment of reflection. 🕊️",
-                            Image_path = "../assets/img/ben1.jpg",
-                            Nr_Comms = 0,
-                            Nr_likes = 5,
-                            OwnerID = "14"
-                        },
-                        new
-                        {
-                            Id = 16,
-                            Created = new DateTime(2025, 4, 15, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "I can't believe this photo went viral! Thanks everyone for the support! 🙏",
-                            Image_path = "../assets/img/download.jpg",
-                            Nr_Comms = 80,
-                            Nr_likes = 500,
-                            OwnerID = "1"
-                        },
-                        new
-                        {
-                            Id = 17,
-                            Created = new DateTime(2025, 3, 10, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "This post was probably uploaded by mistake, no engagement. 👻",
-                            Image_path = "../assets/img/download.jpg",
-                            Nr_Comms = 0,
-                            Nr_likes = 0,
-                            OwnerID = "1"
-                        },
-                        new
-                        {
-                            Id = 18,
-                            Created = new DateTime(2025, 2, 28, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Hitting a new personal record at the gym today! Hard work pays off. 💪",
-                            Image_path = "../assets/img/ben1.jpg",
-                            Nr_Comms = 20,
-                            Nr_likes = 105,
-                            OwnerID = "11"
-                        },
-                        new
-                        {
-                            Id = 19,
-                            Created = new DateTime(2025, 1, 20, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Discovered the best food truck tacos today! Absolute perfection. 🌮",
-                            Image_path = "../assets/img/ben1.jpg",
-                            Nr_Comms = 18,
-                            Nr_likes = 150,
-                            OwnerID = "1"
-                        },
-                        new
-                        {
-                            Id = 20,
-                            Created = new DateTime(2024, 12, 5, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "The first snowfall of the year! Everything looks so peaceful. ❄️",
-                            Image_path = "../assets/img/ben1.jpg",
-                            Nr_Comms = 4,
-                            Nr_likes = 22,
-                            OwnerID = "12"
                         });
                 });
 
