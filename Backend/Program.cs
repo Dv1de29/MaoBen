@@ -1,5 +1,6 @@
 using Backend.Data;
 using Backend.Models;
+using Backend.Seed;
 using Microsoft.AspNetCore.Identity; 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
@@ -95,11 +96,28 @@ new string[]{}
 
 var app = builder.Build();
 
+app.UseStaticFiles();
+
 //Activeaza tool-ul de testare a api-urilor doar in development
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+}
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        // Call the static seed method
+        await SeedData.SeedUsersAsync(services);
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while seeding the database.");
+    }
 }
 
 

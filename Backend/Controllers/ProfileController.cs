@@ -1,10 +1,10 @@
 ﻿using Backend.Models; // Asigură-te că ai namespace-ul corect pentru DTO-uri
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Backend.DTOs;
+using Microsoft.AspNetCore.Hosting;
 namespace Backend.Controllers
 {
     [Route("api/[controller]")]
@@ -13,10 +13,19 @@ namespace Backend.Controllers
     public class ProfileController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IWebHostEnvironment _webHostEnvironment;
 
-        public ProfileController(UserManager<ApplicationUser> userManager)
+        public ProfileController(UserManager<ApplicationUser> userManager, IWebHostEnvironment webHostEnvironment)
         {
             _userManager = userManager;
+            _webHostEnvironment = webHostEnvironment;
+        }
+
+        private string GenerateRandomId()
+        {
+            Random random = new Random();
+            long randomNumber = random.Next(1000000000) + 1000000000L; // Asigură 10 cifre
+            return randomNumber.ToString();
         }
 
 
@@ -40,6 +49,57 @@ namespace Backend.Controllers
             return Ok(response);
         }
 
+        [HttpPost("upload_image")]
+        [Consumes("multipart/form-data")]
+        [ApiExplorerSettings(IgnoreApi = true)]
+        public async Task<IActionResult> UploadImage(IFormFile image_path)
+        {
+
+            Console.WriteLine("--------------------------------------------------");
+            Console.WriteLine("DEBUG: UploadImage method hit. Attempting to use be_assets.");
+            Console.WriteLine("--------------------------------------------------");
+
+            if (image_path == null || image_path.Length == 0)
+            {
+                return BadRequest("Nu a fost furnizat niciun fișier.");
+            }
+
+            if(!image_path.ContentType.StartsWith("image/"))
+            {
+                return BadRequest("File type is wrong and should be: image/");
+            }
+
+            string uniqueId = this.GenerateRandomId();
+            string extension = Path.GetExtension(image_path.FileName);
+            string fileName = uniqueId + extension;
+
+            string relativePath = $"/be_assets/img/profile/{fileName}";
+
+            string targetFolder = Path.Combine(_webHostEnvironment.WebRootPath, "be_assets", "img", "profile");
+            string physicalPath = Path.Combine(targetFolder, fileName);
+
+            try
+            {
+                if (!Directory.Exists(targetFolder))
+                {
+                    Directory.CreateDirectory(targetFolder);
+                }
+
+                using (var stream = new FileStream(physicalPath, FileMode.Create))
+                {
+                    await image_path.CopyToAsync(stream);
+                }
+
+                return Ok(new { filePath = relativePath });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    $"Eroare la salvarea fișierului: {ex.Message}");
+            }
+        }
+
+
 
         [HttpPut]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileUserDTO dto)
@@ -55,6 +115,7 @@ namespace Backend.Controllers
             // NOTĂ: Nu lăsăm userul să schimbe ID-ul sau Username-ul aici, de obicei
             user.Privacy = dto.Privacy;
             user.Description=dto.Description;
+            user.ProfilePictureUrl = dto.ProfilePictureUrl;
             // Exemplu: Dacă vrei să poată schimba și telefonul
             // user.PhoneNumber = dto.PhoneNumber; 
 

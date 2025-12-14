@@ -94,7 +94,13 @@ function RegisterPage() {
                     throw new Error(`Response not ok: ${res.status}, ${res.statusText}`)
                 }
 
-                navigate("/login")
+                const data = await res.json();
+
+                sessionStorage.setItem("userToken", data.token)
+                sessionStorage.setItem("userName", data.username)
+                sessionStorage.setItem("userRole", data.role);
+
+                navigate("/")
             } catch(e){
                 console.log("Register failed:", e)
             }

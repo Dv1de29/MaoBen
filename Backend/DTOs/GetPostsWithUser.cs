@@ -1,6 +1,6 @@
-﻿namespace Backend.Models
+﻿namespace Backend.DTOs
 {
-    public class Posts
+    public class GetPostsWithUser
     {
         public int Id { get; set; }
 
@@ -16,6 +16,8 @@
 
         public DateTime Created { get; set; }
 
-        public ApplicationUser User { get; set; }
+        public string Username  { get; set; }
+
+        public string user_iamge_path { get; set; }
     }
 }

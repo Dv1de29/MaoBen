@@ -3,7 +3,7 @@ import '../styles/ProfilePage.css'; // Assuming a CSS file for styles
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCog, faArrowLeft, faGlobe, faPlus, faTh, faBookmark, faUserTag } from '@fortawesome/free-solid-svg-icons';
 
-import type { UserProfileType } from '../assets/types';
+import type { PostType, PostApiType, UserProfileType, UserProfileApiType } from '../assets/types';
 
 
 
@@ -13,7 +13,9 @@ import highlight2 from '../assets/images/download.jpg';
 import highlight3 from '../assets/images/download.jpg';
 import highlight4 from '../assets/images/download.jpg';
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+
 
 
 
@@ -22,69 +24,141 @@ import { useNavigate } from 'react-router-dom';
 const ProfilePage = () => {
     const navigate = useNavigate()
 
+    const { usernamePath } = useParams();
 
-    const user: UserProfileType = {
-        id: 1,
-        userName: "david._florian",
-        name: "David",
-        description: "YNWA",
-        nr_followers: 700,
-        nr_following: 600,
-        posts: [{
-            id: 1,
-            owner: "david._florian",
-            img_path: "./assets/img/download.jpg",
-            nr_likes: 10000,
-            has_liked: true,
-            nr_comm: 10,
-            },
-            {
-            id: 2,
-            owner: "david._florian",
-            img_path: "./assets/img/download.jpg",
-            nr_likes: 10000,
-            has_liked: true,
-            nr_comm: 10,
-            }
-        ],
+    const initial_user: UserProfileType = {
+        username: "",
+        email: "",
+        privacy: false,
+        profilePictureUrl: "",
+        // name: "David",
+        description: "",
+        // nr_followers: 700,
+        // nr_following: 600,
+        posts: [],
     }
+
+    const [posts, setPosts] = useState<PostType[]>([]);
+    const [user, SetUser] = useState<UserProfileType>(initial_user)
+
+    //fetching my User + Posts
+    useEffect(() => {
+        const fetchMyPosts = async () => {
+            try{
+                const res = await fetch(`http://localhost:5000/api/posts/ByOwner/1`)
+        
+                if ( !res.ok ){
+                    throw new Error(`Response error: ${res.status},${res.statusText}`)
+                }
+    
+                const data = await res.json();
+    
+                const transformedPosts = data.map((postData: PostApiType) => {
+                    return{
+                        id: postData.id,
+                        owner: postData.owner,
+                        img_path: postData.image_path,
+                        nr_likes: postData.nr_likes,
+                        nr_comm: postData.nr_comms,
+                        has_liked: false,
+                    }
+                });
+    
+                setPosts(transformedPosts);
+    
+            } catch(e){
+                console.error("Error at loading my posts: ", e)
+            }
+        }
+
+        const fetchUser = async () => {
+            try{
+                const token = sessionStorage.getItem("userToken");
+
+                const res = await fetch("http://localhost:5000/api/Profile", {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                })
+
+                if ( !res.ok ){
+                    throw new Error(`User error: ${res.status}, ${res.statusText}`);
+                }
+
+                const data: UserProfileApiType = await res.json();
+
+                console.log(data)
+
+                SetUser({
+                    username: data.username,
+                    email: data.email,
+                    profilePictureUrl: data.profilePictureUrl,
+                    privacy: data.privacy,
+                    description: data.description,
+                    posts: [],
+                })
+                
+
+            } catch(e){
+                console.log("Error at fetching user: ", e);
+            }
+        }
+
+        // const uid = sessionStorage.getItem("userId");
+
+        // if ( !uid ){
+        //     console.error("NO USER ID");
+        //     return;
+        // }
+
+        fetchUser()
+        fetchMyPosts(); 
+
+    }, [])
 
 
     return (
         <div className="profile-page dark-mode">
         <div className="header">
             <button className="icon-button"><FontAwesomeIcon icon={faArrowLeft} onClick={() => {navigate(-1)}}/></button>
-            <h1>{user.userName}</h1>
-            <button className="icon-button" onClick={() => {navigate(`edit`)}}><FontAwesomeIcon icon={faCog} /></button>
+            <h1>{user.username}</h1>
+            {!usernamePath && (
+                <button className="icon-button" onClick={() => {navigate(`edit`)}}><FontAwesomeIcon icon={faCog} /></button>
+            )}
         </div>
 
         <div className="profile-header">
             <div className="profile-pic-container">
-            <img src={profilePic} alt="" className="profile-pic" />
+            <img src={user.profilePictureUrl} alt="" className="profile-pic" />
             <div className="notification-badge">Bun si tu Ionute</div>
             </div>
             <div className="profile-info">
             <div className="stats">
                 <div className="stat">
-                <span className="count">{user.posts.length}</span> postări
+                <span className="count">{posts.length}</span> postări
                 </div>
                 <div className="stat">
-                <span className="count">{user.nr_followers}</span> de urmăritori
+                <span className="count">{900}</span> de urmăritori
                 </div>
                 <div className="stat">
-                <span className="count">{user.nr_following}</span> de urmăriri
+                <span className="count">{200}</span> de urmăriri
                 </div>
             </div>
             <div className="bio">
-                <h2>{user.name}</h2>
+                <h2>
+                    {/* {user.name} */}
+                    {"David"}
+                </h2>
                 <p><FontAwesomeIcon icon={faGlobe} /> {user.description}</p>
-                <p>{`@${user.userName}`}</p>
+                <p>{`@${user.username}`}</p>
             </div>
             </div>
         </div>
 
         <div className="actions">
-            <button className="primary-button">Edit profile</button>
+            <button className="primary-button" onClick={() => {navigate(`edit`)}}>Edit profile</button>
             <button className="secondary-button">See archive</button>
         </div>
 
@@ -117,11 +191,14 @@ const ProfilePage = () => {
             <button className="tab"><FontAwesomeIcon icon={faUserTag} /></button>
         </div>
 
+            {posts.length === 0 && (
+                <div className="no-posts-container">
+                    <span>This user has no posts</span>
+                </div>
+            )}
         <div className="photo-grid">
-            {user.posts.map(post => (
-                <>
-                    <div className="grid-item"><img src={post.img_path} alt="Post 1" /></div>
-                </>
+            {posts.map(post => (
+                <div className="grid-item" key={post.id}><img src={post.img_path} alt="Post 1" /></div>
             ))}
         </div>
         </div>

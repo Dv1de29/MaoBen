@@ -1,31 +1,77 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { UserSettingsType } from '../assets/types'; // Adjust path as needed
+import type { UserProfileApiType, UserSettingsType } from '../assets/types'; // Adjust path as needed
 
 
 import '../styles/ProfileEditPage.css'
 
-// Mock initial data (In a real app, you would fetch this via useEffect or Context)
 const INITIAL_USER: UserSettingsType = {
-    id: 123,
-    userName: "coding_wizard",
-    name: "John Doe",
-    description: "Full stack developer | Coffee enthusiast",
-    profile_image: "/assets/img/download.jpg"
+    userName: "",
+    name: "",
+    description: "",
+    profile_image: "/assets/img/no_user.jpg",
+    privacy: false,
 };
 
 const EditProfilePage = () => {
     const navigate = useNavigate();
 
-    // We exclude 'id' from the state since we don't edit it
     const [formData, setFormData] = useState<Omit<UserSettingsType, 'id'>>({
         userName: INITIAL_USER.userName,
         name: INITIAL_USER.name,
         description: INITIAL_USER.description,
-        profile_image: INITIAL_USER.profile_image
+        profile_image: INITIAL_USER.profile_image,
+        privacy: false,
     });
 
-    // Handle text and text area changes
+    const [uploading, setUploading] = useState(false);
+    const originalImageUrlRef = useRef(INITIAL_USER.profile_image);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+
+    //fetchUser
+    useEffect(() => {
+        const fetchUser = async () => {
+            try{
+                const token = sessionStorage.getItem("userToken");
+
+                const res = await fetch(`http://localhost:5000/api/Profile`, {
+                    method: "GET",
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                if ( !res.ok ){
+                    throw new Error(`Fetching error: ${res.status}, ${res.statusText}`);
+                }
+
+                const data: UserProfileApiType = await res.json();
+
+                const profileImgPath = data.profilePictureUrl ? data.profilePictureUrl : '/assets/img/no_user.png';
+
+                originalImageUrlRef.current = profileImgPath;
+
+                setFormData({
+                    userName: data.username,
+                    name: "Test Name",
+                    description: data.description,
+                    profile_image: profileImgPath,
+                    privacy: data.privacy,
+                });
+
+            } catch(e){
+                console.error("Error fetching: ", e);
+            }
+        }
+
+        fetchUser();
+    }, [])
+
+
+    /// Change formular 
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({
@@ -34,15 +80,100 @@ const EditProfilePage = () => {
         }));
     };
 
-    // Handle Form Submit
+    /// Import an image
+    const handleImageClick = () => {
+        if ( !uploading && fileInputRef.current ){
+            fileInputRef.current.click();
+        }
+    }
+
+    const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if ( !file || !file.type.startsWith('image/')) {
+            console.log("NO FILE")
+            if ( e.target.value ) e.target.value = "";
+            return;
+        }
+
+        const previewUrl = URL.createObjectURL(file);
+
+        console.log(previewUrl)
+
+        setFormData(prev => {
+            return {
+                ...prev,
+                profile_image: previewUrl,
+            }
+        })
+
+        setUploading(true);
+
+        const formDataPayload = new FormData();
+        formDataPayload.append('image_path', file)
+
+        try{
+            const token = sessionStorage.getItem("userToken");
+            const res = await fetch("http://localhost:5000/api/Profile/upload_image", {
+                method: "POST",
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formDataPayload
+            });
+
+            if ( !res.ok ){
+                throw new Error(`Error at response: ${res.status}, ${res.statusText}`)
+            }
+
+            const result: { filePath: string } = await res.json();
+
+            setFormData(prev => ({ ...prev, profile_image: result.filePath }));
+
+            console.log("SUCCEDED WIHT PATH", result);
+
+            URL.revokeObjectURL(previewUrl)
+        } catch(e){
+            console.error("Error at fetching: ", e);
+            setFormData(prev => ({ ...prev, profile_image: originalImageUrlRef.current }));
+            URL.revokeObjectURL(previewUrl);
+        } finally{
+            setUploading(false);
+            if (e.target.value) e.target.value = '';
+        }
+    }
+
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
-        console.log("Saving data:", { id: INITIAL_USER.id, ...formData });
         
-        // TODO: Add your API call here (e.g., axios.put('/api/user', formData))
-        
-        // After save, go back to profile
-        navigate(-1); 
+        const UpdateUser = async () => {
+            try{
+                const token = sessionStorage.getItem("userToken");
+
+                const res = await fetch(`http://localhost:5000/api/Profile`, {
+                    method: "PUT",
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        privacy: formData.privacy,
+                        description: formData.description,
+                        profilePictureUrl: formData.profile_image,
+                    })
+                });
+
+                if ( !res.ok ){
+                    throw new Error(`Fetching error: ${res.status}, ${res.statusText}`);
+                }
+
+                navigate(-1); 
+
+            } catch(e){
+                console.error("Error fetching: ", e);
+            }
+        }
+
+        UpdateUser()
     };
 
     return (
@@ -51,22 +182,19 @@ const EditProfilePage = () => {
                 <h2>Edit Profile</h2>
 
                 {/* Image Section */}
-                <div className="image-section">
+                <div className="image-section" onClick={handleImageClick}>
                     <img 
                         src={formData.profile_image} 
                         alt="Preview" 
                         className="preview-img"
                     />  
-                </div>
-
-                {/* Name Section */}
-                <div className="input-group">
-                    <label>Display Name</label>
-                    <input 
-                        type="text" 
-                        name="name"
-                        value={formData.name}
-                        onChange={handleChange}
+                    <input
+                        type="file"
+                        accept="image/*"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        style={{ display: 'none' }}
+                        disabled={uploading}
                     />
                 </div>
 
@@ -79,6 +207,36 @@ const EditProfilePage = () => {
                         value={formData.userName}
                         onChange={handleChange}
                     />
+                </div>
+
+                {/* Privacy section */}
+                <div className="input-group">
+                    {/* <label>Privacy</label> */}
+                    <span>Privacy</span>
+                    <div className="privacy-wrapper">
+                        <div 
+                            className={`privacy-choice ${formData.privacy ? "active" : ""} private`}
+                            onClick={() => {
+                                setFormData(prev => {
+                                    return {
+                                        ...prev,
+                                        privacy: true,
+                                    }
+                                })
+                            }}
+                        >{"Private"}</div>
+                        <div 
+                            className={`privacy-choice ${formData.privacy ? "" : "active"} public`}
+                            onClick={() => {
+                                setFormData(prev => {
+                                    return {
+                                        ...prev,
+                                        privacy: false,
+                                    }
+                                })
+                            }}
+                        >{"Public"}</div>
+                    </div>
                 </div>
 
                 {/* Description Section */}

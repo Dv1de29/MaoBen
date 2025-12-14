@@ -4,6 +4,7 @@ using Backend.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251211190253_dasdadasda")]
+    partial class dasdadasda
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -480,27 +483,6 @@ namespace Backend.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("UserFollow", b =>
-                {
-                    b.Property<string>("SourceUserId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("TargetUserId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.HasKey("SourceUserId", "TargetUserId");
-
-                    b.HasIndex("TargetUserId");
-
-                    b.ToTable("UserFollows");
-                });
-
             modelBuilder.Entity("Backend.Models.Posts", b =>
                 {
                     b.HasOne("Backend.Models.ApplicationUser", "User")
@@ -559,25 +541,6 @@ namespace Backend.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("UserFollow", b =>
-                {
-                    b.HasOne("Backend.Models.ApplicationUser", "SourceUser")
-                        .WithMany()
-                        .HasForeignKey("SourceUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Backend.Models.ApplicationUser", "TargetUser")
-                        .WithMany()
-                        .HasForeignKey("TargetUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("SourceUser");
-
-                    b.Navigation("TargetUser");
                 });
 #pragma warning restore 612, 618
         }

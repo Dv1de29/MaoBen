@@ -35,19 +35,23 @@ namespace Backend.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetRecentPosts([FromQuery] int count = 20)
+        public async Task<IActionResult> GetRecentPosts(
+            [FromQuery] int count = 20,
+            [FromQuery] int skip = 0
+            )
         {
             int limit = Math.Min(count, MaxPostsLimit);
 
             var posts = await _context.Posts
                 .Include(p => p.User)
                 .OrderByDescending(p => p.Id)
+                .Skip(skip)
                 .Take(limit)
                 .ToListAsync();
 
             if (posts == null || !posts.Any())
             {
-                return NoContent();
+                return Ok(new List<Posts>());
             }
 
             return Ok(posts);
@@ -67,9 +71,11 @@ namespace Backend.Controllers
                 .OrderByDescending(p => p.Id)
                 .ToListAsync();
 
-            if (posts == null || !posts.Any()){ 
-                return NoContent();
-            }
+
+            // DACA NU SE GASESC POSTARI, RETURNEZ O LISTA GOALA
+            //if (posts == null || !posts.Any()){ 
+            //    return new List<Posts>();
+            //}
 
             return Ok(posts);
         }

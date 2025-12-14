@@ -81,6 +81,30 @@
     resize: vertical; 
 }
 
+.privacy-wrapper{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.privacy-wrapper .privacy-choice{
+    width: 50%;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #333;
+    border: 1px solid #ffffff;
+}
+
+.privacy-choice.active.private{
+    background-color: red;
+}
+
+.privacy-choice.active.public{
+    background-color: blue;
+}
+
 /* Buttons */
 .button-group {
     display: flex;

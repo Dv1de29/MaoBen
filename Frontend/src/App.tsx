@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import './App.css';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
@@ -11,8 +11,18 @@ import EditProfilePage from './pages/ProfileEditPage';
 
 
 function Layout(){
+    const navigate = useNavigate();
     const location = useLocation();
     const isLogin = location.pathname === '/login' || location.pathname === '/register';
+
+
+    useEffect(() => {
+        if ( !sessionStorage.getItem("userToken") && !isLogin ){
+            navigate("/login");
+        }
+    }, [location.pathname])
+
+
 
     return (
         <>
@@ -29,9 +39,8 @@ function Layout(){
                         </Route>
                         <Route path='/profile/edit' element={<EditProfilePage />} />
 
-                        <Route path='/profile/:id' element={<ProfilePage />}>
+                        <Route path='/profile/:usernmae' element={<ProfilePage />}>
                         </Route>
-                        <Route path='/profile/:id/edit' element={<EditProfilePage />} />
                         
                         <Route path='*' element={<NotFound />}></Route>
                     </Routes>
