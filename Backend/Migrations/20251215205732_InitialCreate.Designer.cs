@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251210143052_Add_Follows")]
-    partial class Add_Follows
+    [Migration("20251215205732_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -117,6 +117,9 @@ namespace Backend.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -133,36 +136,13 @@ namespace Backend.Migrations
 
                     b.Property<string>("OwnerID")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("UserId")
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("OwnerID");
 
                     b.ToTable("Posts");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Description = "This is the first seeded post for testing!",
-                            Image_path = "/images/post1.jpg",
-                            Nr_Comms = 2,
-                            Nr_likes = 15,
-                            OwnerID = "1"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Description = "A second post showing off the seeding feature.",
-                            Image_path = "/images/post2.jpg",
-                            Nr_Comms = 10,
-                            Nr_likes = 50,
-                            OwnerID = "1"
-                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -323,7 +303,9 @@ namespace Backend.Migrations
                 {
                     b.HasOne("Backend.Models.ApplicationUser", "User")
                         .WithMany()
-                        .HasForeignKey("UserId");
+                        .HasForeignKey("OwnerID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });

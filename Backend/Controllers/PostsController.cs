@@ -89,18 +89,18 @@ namespace Backend.Controllers
             return Ok(posts);
         }
 
-        [HttpGet("ByOwner/{ownerId}")]
-        public async Task<IActionResult> GetPostsByOwnerId(string ownerId)
+        [HttpGet("ByOwner/{ownerUsername}")]
+        public async Task<IActionResult> GetPostsByOwnerId(string ownerUsername)
         {
-            if (string.IsNullOrEmpty(ownerId))
+            if (string.IsNullOrEmpty(ownerUsername))
             {
-                return BadRequest("Owner ID cannot be empty.");
+                return BadRequest("Username cannot be empty.");
             }
 
             var posts = await _context.Posts
                 .Include(p => p.User)
-                .Where(p => p.OwnerID == ownerId)
-                .OrderByDescending(p => p.Id)
+                .Where(p => p.User.UserName!.ToLower() == ownerUsername.ToLower())
+                .OrderByDescending(p => p.Created)
                 .ToListAsync();
 
 
@@ -149,8 +149,8 @@ namespace Backend.Controllers
                 OwnerID = userId!,
                 Image_path = relativePath,
                 Description = dto.Description,
-                Created = DateTime.UtcNow
-                
+                Created = DateTime.UtcNow,
+
             };
 
             try

@@ -9,9 +9,12 @@ import CloseLock from '../assets/svg/lock-close-icon.svg'
 
 
 import '../styles/LoginPage.css';
+import { useUser } from '../context/UserContext';
 
 function LoginPage() {
     const navigate = useNavigate();
+
+    const { refreshUser } = useUser();
 
 
     const [formData, setFormData] = useState({
@@ -57,6 +60,7 @@ function LoginPage() {
                 sessionStorage.setItem("userName", data.username)
                 sessionStorage.setItem("userRole", data.role);
 
+                refreshUser();
                 navigate("/");
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any

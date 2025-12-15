@@ -38,7 +38,7 @@ function Layout(){
 
                         <Route path='/profile' element={<ProfilePage />} />
                         <Route path='/profile/edit' element={<EditProfilePage />} />
-                        <Route path='/profile/:usernmae' element={<ProfilePage />} />
+                        <Route path='/profile/:usernamePath' element={<ProfilePage />} />
 
                         <Route path='/create_post' element={<CreatePostPage />} />
                         

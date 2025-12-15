@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Backend.DTOs;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 namespace Backend.Controllers
 {
     [Route("api/[controller]")]
@@ -49,56 +50,35 @@ namespace Backend.Controllers
             return Ok(response);
         }
 
-        [HttpPost("upload_image")]
-        [Consumes("multipart/form-data")]
-        [ApiExplorerSettings(IgnoreApi = true)]
-        public async Task<IActionResult> UploadImage(IFormFile image_path)
+
+        [HttpGet("{username}")]
+        public async Task<IActionResult> GetProfileOfUser(string username)
         {
-
             Console.WriteLine("--------------------------------------------------");
-            Console.WriteLine("DEBUG: UploadImage method hit. Attempting to use be_assets.");
+            Console.WriteLine(username);
             Console.WriteLine("--------------------------------------------------");
 
-            if (image_path == null || image_path.Length == 0)
+            if (string.IsNullOrEmpty(username))
             {
-                return BadRequest("Nu a fost furnizat niciun fișier.");
+                return BadRequest("Username is required");
             }
 
-            if(!image_path.ContentType.StartsWith("image/"))
+            var user = await _userManager.Users
+                .FirstOrDefaultAsync(u => u.UserName!.ToLower() == username.ToLower());
+
+            if (user == null) return NotFound($"User {username} not found");
+
+            var response = new GetProfileUserResponseDTO
             {
-                return BadRequest("File type is wrong and should be: image/");
-            }
+                Username = user.UserName!,
+                Email = user.Email!,
+                ProfilePictureUrl = user.ProfilePictureUrl,
+                Privacy = user.Privacy,
+                Description = user.Description
+            };
 
-            string uniqueId = this.GenerateRandomId();
-            string extension = Path.GetExtension(image_path.FileName);
-            string fileName = uniqueId + extension;
-
-            string relativePath = $"/be_assets/img/profile/{fileName}";
-
-            string targetFolder = Path.Combine(_webHostEnvironment.WebRootPath, "be_assets", "img", "profile");
-            string physicalPath = Path.Combine(targetFolder, fileName);
-
-            try
-            {
-                if (!Directory.Exists(targetFolder))
-                {
-                    Directory.CreateDirectory(targetFolder);
-                }
-
-                using (var stream = new FileStream(physicalPath, FileMode.Create))
-                {
-                    await image_path.CopyToAsync(stream);
-                }
-
-                return Ok(new { filePath = relativePath });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    $"Eroare la salvarea fișierului: {ex.Message}");
-            }
+            return Ok(response);
         }
-
 
 
         [HttpPut]
@@ -149,6 +129,57 @@ namespace Backend.Controllers
             }
 
             return BadRequest(result.Errors);
+        }
+
+
+        [HttpPost("upload_image")]
+        [Consumes("multipart/form-data")]
+        [ApiExplorerSettings(IgnoreApi = true)]
+        public async Task<IActionResult> UploadImage(IFormFile image_path)
+        {
+
+            Console.WriteLine("--------------------------------------------------");
+            Console.WriteLine("DEBUG: UploadImage method hit. Attempting to use be_assets.");
+            Console.WriteLine("--------------------------------------------------");
+
+            if (image_path == null || image_path.Length == 0)
+            {
+                return BadRequest("Nu a fost furnizat niciun fișier.");
+            }
+
+            if(!image_path.ContentType.StartsWith("image/"))
+            {
+                return BadRequest("File type is wrong and should be: image/");
+            }
+
+            string uniqueId = this.GenerateRandomId();
+            string extension = Path.GetExtension(image_path.FileName);
+            string fileName = uniqueId + extension;
+
+            string relativePath = $"/be_assets/img/profile/{fileName}";
+
+            string targetFolder = Path.Combine(_webHostEnvironment.WebRootPath, "be_assets", "img", "profile");
+            string physicalPath = Path.Combine(targetFolder, fileName);
+
+            try
+            {
+                if (!Directory.Exists(targetFolder))
+                {
+                    Directory.CreateDirectory(targetFolder);
+                }
+
+                using (var stream = new FileStream(physicalPath, FileMode.Create))
+                {
+                    await image_path.CopyToAsync(stream);
+                }
+
+                return Ok(new { filePath = relativePath });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    $"Eroare la salvarea fișierului: {ex.Message}");
+            }
         }
     }
 }

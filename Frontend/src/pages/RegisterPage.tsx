@@ -9,9 +9,11 @@ import CloseLock from '../assets/svg/lock-close-icon.svg'
 
 
 import '../styles/LoginPage.css';
+import { useUser } from '../context/UserContext';
 
 function RegisterPage() {
     const navigate = useNavigate();
+    const { refreshUser } = useUser();
 
     const [formData, setFormData] = useState({
         firstName: 'Ionut',
@@ -101,8 +103,10 @@ function RegisterPage() {
                 sessionStorage.setItem("userName", data.username)
                 sessionStorage.setItem("userRole", data.role);
 
+                refreshUser();
                 navigate("/")
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } catch(e: any){
                 console.error("Register failed:", e);
                 setError(e.toString())
