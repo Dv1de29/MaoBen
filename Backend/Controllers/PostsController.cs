@@ -46,6 +46,26 @@ namespace Backend.Controllers
             return Ok(post);
         }
 
+        [Authorize] 
+        [HttpGet("my_posts")]
+        public async Task<IActionResult> GetMyPosts()
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized("User ID not found in token.");
+            }
+
+            var myPosts = await _context.Posts
+                .Include(p => p.User)
+                .Where(p => p.OwnerID == userId)
+                .OrderByDescending(p => p.Created)
+                .ToListAsync();
+
+            return Ok(myPosts);
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetRecentPosts(
             [FromQuery] int count = 20,
@@ -119,12 +139,18 @@ namespace Backend.Controllers
 
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized("User ID not found in token.");
+            }
+
             var newPost = new Posts
             {
-                Description = dto.Description,
+                OwnerID = userId!,
                 Image_path = relativePath,
-                OwnerID = userId,
+                Description = dto.Description,
                 Created = DateTime.UtcNow
+                
             };
 
             try

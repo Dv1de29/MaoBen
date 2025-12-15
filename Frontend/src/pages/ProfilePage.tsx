@@ -41,8 +41,17 @@ const ProfilePage = () => {
     //fetching my User + Posts
     useEffect(() => {
         const fetchMyPosts = async () => {
+
+            const token = sessionStorage.getItem("userToken");
+
             try{
-                const res = await fetch(`/api/posts/ByOwner/1`)
+                const res = await fetch(`/api/Posts/my_posts`, {
+                    method: "GET",
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': "application/json"
+                    }
+                })
         
                 if ( !res.ok ){
                     throw new Error(`Response error: ${res.status},${res.statusText}`)
@@ -177,11 +186,11 @@ const ProfilePage = () => {
             </div>
         </div> */}
 
-        <div className="tabs">
+        {/* <div className="tabs">
             <button className="tab active"><FontAwesomeIcon icon={faTh} /></button>
             <button className="tab"><FontAwesomeIcon icon={faBookmark} /></button>
             <button className="tab"><FontAwesomeIcon icon={faUserTag} /></button>
-        </div>
+        </div> */}
 
             {posts.length === 0 && (
                 <div className="no-posts-container">

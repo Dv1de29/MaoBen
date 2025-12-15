@@ -1,4 +1,4 @@
-import { useState, useRef, type ChangeEvent, type FormEvent } from 'react';
+import { useState, useRef, type ChangeEvent, type FormEvent, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/CreatePostPage.css'; // We will create this CSS file below
 
@@ -52,7 +52,7 @@ const CreatePostPage = () => {
             formData.append('description', description);
             formData.append('image', selectedFile);
 
-            const res = await fetch("/api/Posts", {
+            const res = await fetch("/api/Posts/create_post", {
                 method: "POST",
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -64,8 +64,7 @@ const CreatePostPage = () => {
                 throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
             }
 
-            navigate("/"); 
-            // navigate(-1); 
+            navigate("/");
 
         } catch (error) {
             console.error("Error creating post:", error);
@@ -75,6 +74,14 @@ const CreatePostPage = () => {
             if (previewUrl) URL.revokeObjectURL(previewUrl);
         }
     };
+
+    useEffect(() => {
+        return () => {
+            if (previewUrl) {
+                URL.revokeObjectURL(previewUrl);
+            }
+        };
+    }, [previewUrl]);
 
     return (
         <div className="create-post-container">
