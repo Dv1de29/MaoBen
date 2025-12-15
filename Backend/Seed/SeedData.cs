@@ -15,7 +15,7 @@ namespace Backend.Seed
             var usersToSeed = new List<UserSeedData>
         {
             new UserSeedData("David", "Barbu", "david_florian", "david@test.com", "David29!", "be_assets/img/ben1.jpg"),
-            new UserSeedData("Ionut", "FIlote", "filote_ionut", "fifi@test.com", "Fifi7cm!", "be_assets/img/ben1.jpg"),
+            new UserSeedData("Ionut", "FIlote", "filote_ionut", "fifi@test.com", "Fifi7cm!"),
             new UserSeedData("Alex", "Popescu", "alex.p", "alex.p@example.com", "SecurePwd1!", "be_assets/img/ben1.jpg"),
             new UserSeedData("Maria", "Ionescu", "maria.i", "maria.i@example.com", "SecurePwd2!", "be_assets/img/ben1.jpg"),
             new UserSeedData("Ionut", "Vasilescu", "ionut.v", "ionut.v@example.com", "SecurePwd3!", "be_assets/img/ben1.jpg"),
