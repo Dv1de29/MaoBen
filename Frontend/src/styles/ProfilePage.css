@@ -52,6 +52,9 @@
 /* Profile Picture & Note Badge */
 .profile-pic-container {
   position: relative;
+  /* display: flex;
+  justify-content: center;
+  align-items: center; */
   flex-shrink: 0;
   margin-right: 20px;
   cursor: pointer;

@@ -7,14 +7,9 @@ import type { PostType, PostApiType, UserProfileType, UserProfileApiType } from 
 
 
 
-import profilePic from '../assets/images/download.jpg'; // Replace with actual images
-import highlight1 from '../assets/images/download.jpg';
-import highlight2 from '../assets/images/download.jpg';
-import highlight3 from '../assets/images/download.jpg';
-import highlight4 from '../assets/images/download.jpg';
-
 import { useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { useUser } from '../context/UserContext';
 
 
 
@@ -26,20 +21,22 @@ const ProfilePage = () => {
 
     const { usernamePath } = useParams();
 
-    const initial_user: UserProfileType = {
-        username: "",
-        email: "",
-        privacy: false,
-        profilePictureUrl: "",
-        // name: "David",
-        description: "",
-        // nr_followers: 700,
-        // nr_following: 600,
-        posts: [],
-    }
+    // const initial_user: UserProfileType = {
+    //     username: "",
+    //     email: "",
+    //     privacy: false,
+    //     profilePictureUrl: "",
+    //     // name: "David",
+    //     description: "",
+    //     // nr_followers: 700,
+    //     // nr_following: 600,
+    //     posts: [],
+    // }
 
+    // const [user, SetUser] = useState<UserProfileType>(initial_user)
+    
     const [posts, setPosts] = useState<PostType[]>([]);
-    const [user, SetUser] = useState<UserProfileType>(initial_user)
+    const { user } = useUser();
 
     //fetching my User + Posts
     useEffect(() => {
@@ -71,49 +68,44 @@ const ProfilePage = () => {
             }
         }
 
-        const fetchUser = async () => {
-            try{
-                const token = sessionStorage.getItem("userToken");
+        // const fetchUser = async () => {
+        //     try{
+        //         const token = sessionStorage.getItem("userToken");
 
-                const res = await fetch("/api/Profile", {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                })
+        //         const res = await fetch("/api/Profile", {
+        //             method: 'GET',
+        //             headers: {
+        //                 'Authorization': `Bearer ${token}`,
+        //                 'Content-Type': 'application/json',
+        //             },
+        //         })
 
-                if ( !res.ok ){
-                    throw new Error(`User error: ${res.status}, ${res.statusText}`);
-                }
+        //         if ( !res.ok ){
+        //             throw new Error(`User error: ${res.status}, ${res.statusText}`);
+        //         }
 
-                const data: UserProfileApiType = await res.json();
+        //         const data: UserProfileApiType = await res.json();
 
-                console.log(data)
+        //         console.log(data)
 
-                SetUser({
-                    username: data.username,
-                    email: data.email,
-                    profilePictureUrl: data.profilePictureUrl,
-                    privacy: data.privacy,
-                    description: data.description,
-                    posts: [],
-                })
+        //         SetUser({
+        //             username: data.username,
+        //             email: data.email,
+        //             profilePictureUrl: data.profilePictureUrl || "/assets/img/no_user.png",
+        //             privacy: data.privacy,
+        //             description: data.description,
+        //             posts: [],
+        //         })
                 
 
-            } catch(e){
-                console.log("Error at fetching user: ", e);
-            }
-        }
-
-        // const uid = sessionStorage.getItem("userId");
-
-        // if ( !uid ){
-        //     console.error("NO USER ID");
-        //     return;
+        //     } catch(e){
+        //         console.log("Error at fetching user: ", e);
+        //     }
         // }
 
-        fetchUser()
+        // fetchUser()
+
+
         fetchMyPosts(); 
 
     }, [])
@@ -132,7 +124,7 @@ const ProfilePage = () => {
         <div className="profile-header">
             <div className="profile-pic-container">
             <img src={user.profilePictureUrl} alt="" className="profile-pic" />
-            <div className="notification-badge">Bun si tu Ionute</div>
+            {/* <div className="notification-badge">Bun si tu Ionute</div> */}
             </div>
             <div className="profile-info">
             <div className="stats">
