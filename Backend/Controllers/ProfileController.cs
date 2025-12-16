@@ -1,11 +1,15 @@
-﻿using Backend.Models; // Asigură-te că ai namespace-ul corect pentru DTO-uri
+﻿using Backend.Data;
+using Backend.DTOs.ProfileController;
+using Backend.Models; // Asigură-te că ai namespace-ul corect pentru DTO-uri
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Backend.DTOs;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+
 namespace Backend.Controllers
 {
     [Route("api/[controller]")]
@@ -15,11 +19,13 @@ namespace Backend.Controllers
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IWebHostEnvironment _webHostEnvironment;
+        private readonly AppDbContext _context;
 
-        public ProfileController(UserManager<ApplicationUser> userManager, IWebHostEnvironment webHostEnvironment)
+        public ProfileController(UserManager<ApplicationUser> userManager, IWebHostEnvironment webHostEnvironment, AppDbContext context)
         {
             _userManager = userManager;
             _webHostEnvironment = webHostEnvironment;
+            _context = context;
         }
 
         private string GenerateRandomId()
@@ -44,7 +50,9 @@ namespace Backend.Controllers
                 Email = user.Email!,
                 ProfilePictureUrl = user.ProfilePictureUrl,
                 Privacy = user.Privacy,
-                Description = user.Description
+                Description = user.Description,
+                FollowersCount=user.FollowersCount,
+                FollowingCount=user.FollowingCount
             };
 
             return Ok(response);
@@ -91,28 +99,50 @@ namespace Backend.Controllers
 
             if (user == null) return NotFound("User not found.");
 
-            // Actualizăm câmpurile dorite
-            // NOTĂ: Nu lăsăm userul să schimbe ID-ul sau Username-ul aici, de obicei
-            user.Privacy = dto.Privacy;
-            user.Description=dto.Description;
-            user.ProfilePictureUrl = dto.ProfilePictureUrl;
-            // Exemplu: Dacă vrei să poată schimba și telefonul
-            // user.PhoneNumber = dto.PhoneNumber; 
+            if (!string.IsNullOrWhiteSpace(dto.Username) && dto.Username != user.UserName)
+            {
+                var existingUser = await _userManager.FindByNameAsync(dto.Username);
+                if (existingUser != null)
+                {
+                    return BadRequest(new { message = $"Numele de utilizator '{dto.Username}' este deja folosit." });
+                }
 
-            // Salvăm modificările în baza de date
+                var setUserNameResult = await _userManager.SetUserNameAsync(user, dto.Username);
+                if (!setUserNameResult.Succeeded) return BadRequest(setUserNameResult.Errors);
+            }
+
+            if (dto.Privacy.HasValue)
+            {
+                user.Privacy = dto.Privacy.Value;
+            }
+
+            if (dto.Description != null)
+            {
+                user.Description = dto.Description;
+            }
+
+            if (dto.ProfilePictureUrl != null)
+            {
+                user.ProfilePictureUrl = dto.ProfilePictureUrl;
+            }
+
             var result = await _userManager.UpdateAsync(user);
 
             if (result.Succeeded)
             {
-                return Ok(new { message = "Profil actualizat cu succes!" });
+                return Ok(new
+                {
+                    message = "Profil actualizat cu succes!",
+                    username = user.UserName,
+                    privacy = user.Privacy,
+                    description = user.Description,
+                    profilePictureUrl=user.ProfilePictureUrl,
+                });
             }
 
-            // Dacă apar erori la salvare
             return BadRequest(result.Errors);
         }
 
-        // 3. DELETE: api/profile
-        // Șterge contul utilizatorului curent
         [HttpDelete]
         public async Task<IActionResult> DeleteAccount()
         {
@@ -120,14 +150,21 @@ namespace Backend.Controllers
             var user = await _userManager.FindByIdAsync(userId!);
 
             if (user == null) return NotFound("User not found.");
+            
+
+            //Stergem manual userul
+            var follows = _context.UserFollows
+                .Where(f => f.SourceUserId == userId || f.TargetUserId == userId);
+            _context.UserFollows.RemoveRange(follows);
+
+            await _context.SaveChangesAsync();
 
             var result = await _userManager.DeleteAsync(user);
 
             if (result.Succeeded)
             {
-                return Ok(new { message = "Contul a fost șters definitiv." });
+                return Ok(new { message = "Contul și toate datele asociate au fost șterse." });
             }
-
             return BadRequest(result.Errors);
         }
 
@@ -180,6 +217,35 @@ namespace Backend.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError,
                     $"Eroare la salvarea fișierului: {ex.Message}");
             }
+        }
+        
+        [NonAction]
+        public async Task<IActionResult> GetFollowers()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _userManager.FindByIdAsync(userId!);
+            if (user == null) return NotFound("User not found.");
+            var followers = _context.UserFollows
+                .Where(f => f.TargetUserId == userId && f.Status == FollowStatus.Accepted)
+                .Select(f => f.SourceUserId)
+                .ToList();
+            var followerDetails = new List<GetProfileUserResponseDTO>();
+            foreach (var followerId in followers)
+            {
+                var followerUser = await _userManager.FindByIdAsync(followerId);
+                if (followerUser != null)
+                {
+                    followerDetails.Add(new GetProfileUserResponseDTO
+                    {
+                        Username = followerUser.UserName!,
+                        Email = followerUser.Email!,
+                        ProfilePictureUrl = followerUser.ProfilePictureUrl,
+                        Privacy = followerUser.Privacy,
+                        Description = followerUser.Description
+                    });
+                }
+            }
+            return Ok(followerDetails);
         }
     }
 }

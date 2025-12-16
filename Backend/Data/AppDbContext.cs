@@ -1,6 +1,7 @@
 ﻿using Backend.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using System.Reflection.Emit;
 
 namespace Backend.Data
 {
@@ -15,25 +16,45 @@ namespace Backend.Data
         public DbSet<Posts> Posts { get; set; }
         public DbSet<UserFollow> UserFollows { get; set; }
 
+        public DbSet<Comment> Comments { get; set; }
+
+        public DbSet<PostLike> PostLikes { get; set; }
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
-            builder.Entity<UserFollow>()
-                .HasKey(k => new { k.SourceUserId, k.TargetUserId });
 
-            // Relația: Un user are mulți "Following"
+
+            builder.Entity<UserFollow>()
+                 .HasKey(k => new { k.SourceUserId, k.TargetUserId });
+
             builder.Entity<UserFollow>()
                 .HasOne(f => f.SourceUser)
-                .WithMany() // Poți adăuga o colecție în User dacă vrei: .WithMany(u => u.Followings)
+                .WithMany()
                 .HasForeignKey(f => f.SourceUserId)
-                .OnDelete(DeleteBehavior.Restrict); // Important: Restrict ca să eviți ciclurile la ștergere
+                .OnDelete(DeleteBehavior.Restrict);
 
-            // Relația: Un user are mulți "Followers"
             builder.Entity<UserFollow>()
                 .HasOne(f => f.TargetUser)
                 .WithMany()
                 .HasForeignKey(f => f.TargetUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // --- CONFIGURARE NOUA PENTRU LIKES ---
+            // Cheie compusă: Combinația PostId + UserId este unică
+            builder.Entity<PostLike>()
+                .HasKey(pl => new { pl.PostId, pl.UserId });
+
+            builder.Entity<PostLike>()
+                .HasOne(pl => pl.Post)
+                .WithMany()
+                .HasForeignKey(pl => pl.PostId)
+                .OnDelete(DeleteBehavior.Cascade); // Dacă ștergi postul, se șterg și like-urile
+
+            builder.Entity<PostLike>()
+               .HasOne(pl => pl.User)
+               .WithMany()
+               .HasForeignKey(pl => pl.UserId)
+               .OnDelete(DeleteBehavior.Restrict);
             // This is where we can enforce specific database rules if we want to be strict.
             // For example, making sure FirstName is never null at the database level.
 
