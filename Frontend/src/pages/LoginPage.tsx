@@ -48,12 +48,13 @@ function LoginPage() {
                     },
                     body: JSON.stringify(formData)
                 });
-
+                console.log("UNTIL THROW");
                 if ( !res.ok ) {
                     const errorData = await res.json();
                     throw new Error( errorData.message || `Response not ok: ${res.status}, ${res.statusText}`)
                 }
 
+                console.log("PASSED THROW");
                 const data = await res.json();
 
                 sessionStorage.setItem("userToken", data.token)

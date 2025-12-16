@@ -75,11 +75,29 @@ namespace Backend.Controllers
             int limit = Math.Min(count, MaxPostsLimit);
 
             var posts = await _context.Posts
-                .Include(p => p.User)
-                .OrderByDescending(p => p.Id)
+                .AsNoTracking() // Optimization: Read-only, so we don't need tracking
+                .OrderByDescending(p => p.Created)
                 .Skip(skip)
                 .Take(limit)
+                .Select(p => new GetPostsWithUser
+                {
+                    Id = p.Id,
+                    OwnerID = p.OwnerID,
+                    Nr_likes = p.Nr_likes,
+                    Nr_Comms = p.Nr_Comms,
+                    Image_path = p.Image_path,
+                    Description = p.Description,
+                    Created = p.Created,
+
+                    // Map the data from the related User object
+                    Username = p.User.UserName,
+
+                    // MAKE SURE your ApplicationUser class has a property for the image.
+                    // If it is named differently (e.g. ProfilePicture), change the right side below:
+                    user_iamge_path = p.User.ProfilePictureUrl,
+                })
                 .ToListAsync();
+
 
             if (posts == null || !posts.Any())
             {

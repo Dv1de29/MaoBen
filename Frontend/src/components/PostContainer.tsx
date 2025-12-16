@@ -60,6 +60,9 @@ function PostContainer(){
                     nr_likes: postData.nr_likes,
                     nr_comm: postData.nr_comms,
                     has_liked: false,
+                    created: postData.created,
+                    username: postData.username,
+                    user_image_path: postData.user_image_path,
                 }
             });
 

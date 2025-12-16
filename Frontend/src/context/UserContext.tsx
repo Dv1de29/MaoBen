@@ -11,6 +11,7 @@ interface UserContextType {
 
 
 const GUEST_USER: UserProfileType = {
+    name: "",
     username: "",
     description: "",
     email: "",

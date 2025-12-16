@@ -22,6 +22,7 @@
     padding: 10px 15px;
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     font-size: 14px;
     font-weight: 600;
 }
@@ -40,6 +41,15 @@
     object-position: center;
     object-fit: cover; 
     background-color: #eee;
+}
+
+.card .date-created{
+    color: #737373;
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 5px 10px;
 }
 
 /* Reactions footer stays fixed height */

@@ -55,6 +55,12 @@ namespace Backend.Data
                .WithMany()
                .HasForeignKey(pl => pl.UserId)
                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Comment>()
+                .HasOne(c => c.User)
+                .WithMany()
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
             // This is where we can enforce specific database rules if we want to be strict.
             // For example, making sure FirstName is never null at the database level.
 

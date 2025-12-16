@@ -108,7 +108,31 @@ const ProfilePage = () => {
     }, [usernamePath, contextUser, isMyProfile])
 
     const handleFollow = () => {
+        const follow = async () => {
+            const token = sessionStorage.getItem("userToken");
 
+            try{
+                const res = await fetch(`/api/Follow/${usernamePath}`, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                if ( !res.ok ){
+                    throw new Error(`${res.status}, ${res.statusText}`)
+                }
+
+            } catch(e){
+                console.error("Follow error: ", e);
+            }
+            finally{
+                console.log("");
+            }
+        }
+
+        follow();
     }
 
     if (!displayUser && loading) return <div className="loading" style={{color: "white"}}>Loading...</div>;
@@ -146,7 +170,7 @@ const ProfilePage = () => {
             <div className="bio">
                 <h2>
                     {/* {displayUser.name} */}
-                    {"David"}
+                    {displayUser.name}
                 </h2>
                 <p><FontAwesomeIcon icon={faGlobe} /> {displayUser.description}</p>
                 <p>{`@${displayUser.username}`}</p>
@@ -157,7 +181,7 @@ const ProfilePage = () => {
         {isMyProfile && (
             <div className="actions">
                 <button className="primary-button" onClick={() => {navigate(`edit`)}}>Edit profile</button>
-                <button className="secondary-button">See archive</button>
+                {/* <button className="secondary-button">See archive</button> */}
             </div>
         )}
         {!isMyProfile && (

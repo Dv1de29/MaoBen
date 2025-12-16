@@ -46,6 +46,7 @@ namespace Backend.Controllers
 
             var response = new GetProfileUserResponseDTO
             {
+                Name = user.FullName,
                 Username = user.UserName!,
                 Email = user.Email!,
                 ProfilePictureUrl = user.ProfilePictureUrl,
@@ -78,6 +79,7 @@ namespace Backend.Controllers
 
             var response = new GetProfileUserResponseDTO
             {
+                Name = user.FullName,
                 Username = user.UserName!,
                 Email = user.Email!,
                 ProfilePictureUrl = user.ProfilePictureUrl,

@@ -11,6 +11,7 @@ export interface UserSettingsType{
 
 
 export interface UserProfileType{
+    name: string,
     username: string,
     email: string,
     description: string
@@ -20,6 +21,7 @@ export interface UserProfileType{
 }
 
 export interface UserProfileApiType{
+    name: string,
     username: string,
     email: string,
     profilePictureUrl: string,
@@ -30,6 +32,9 @@ export interface UserProfileApiType{
 
 // Define this alongside PostType or in a dedicated types file
 
+
+
+
 export interface PostType{
     id: number,
     owner: string,
@@ -37,6 +42,9 @@ export interface PostType{
     nr_likes: number,
     has_liked: boolean,
     nr_comm: number,
+    created: string,
+    username: string,
+    user_image_path: string,
 }
 
 export interface PostApiType {
@@ -45,4 +53,7 @@ export interface PostApiType {
     image_path: string;
     nr_likes: number;
     nr_comms: number; 
+    created: string,
+    username: string,
+    user_image_path: string,
 }
