@@ -84,7 +84,9 @@ namespace Backend.Controllers
                 Email = user.Email!,
                 ProfilePictureUrl = user.ProfilePictureUrl,
                 Privacy = user.Privacy,
-                Description = user.Description
+                Description = user.Description,
+                FollowersCount = user.FollowersCount,
+                FollowingCount = user.FollowingCount
             };
 
             return Ok(response);

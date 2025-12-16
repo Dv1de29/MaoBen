@@ -7,6 +7,7 @@ import CommIcon from '../assets/svg/comm-icon.svg'
 import { memo, useState } from 'react';
 
 import '../styles/Post.css'
+import { useNavigate } from 'react-router-dom';
 
 interface PostProps{
     post: PostType;
@@ -14,6 +15,8 @@ interface PostProps{
 }
 
 const Post = memo(({post, onToggleLike}: PostProps) => {
+    const navigate = useNavigate();
+
     const [isLiked, setIsLiked] = useState<boolean>(post.has_liked);
 
     const handleLike = () => {
@@ -47,12 +50,16 @@ const Post = memo(({post, onToggleLike}: PostProps) => {
         return 'Just now';
     }
 
+    console.log(post)
+
     return(
         <div className="card">
             <div className="header">
-                <img className="profile-pic" src={post.img_path} alt="Avatar" /> 
+                <img className="profile-pic" src={post.user_image_path} alt="Avatar" /> 
         
-                <span className="username">{post.username}</span> 
+                <span className="username" onClick={() => {
+                    navigate(`/profile/${post.username}`)
+                }}>{post.username}</span> 
             </div>
             <img src={post.img_path} alt="" />  
             <span className='date-created'>{getTimeAgo(post.created)}</span>            

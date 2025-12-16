@@ -25,6 +25,8 @@ const ProfilePage = () => {
     );
     const [posts, setPosts] = useState<PostType[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
+
+ 
     
 
     //fetching my User + Posts
@@ -72,7 +74,7 @@ const ProfilePage = () => {
                         }
                     });
                 } else {
-                    console.log(usernamePath)
+                    
                     postsRes = await fetch(`/api/Posts/ByOwner/${usernamePath}`, {
                         headers: { 
                             'Authorization': `Bearer ${token}`,
@@ -83,7 +85,7 @@ const ProfilePage = () => {
 
                 if (postsRes.ok) {
                     const data = await postsRes.json();
-                    console.log(data)
+                   
                     
                     const transformedPosts = data.map((postData: PostApiType) => ({
                         id: postData.id,
@@ -161,10 +163,10 @@ const ProfilePage = () => {
                 <span className="count">{posts.length}</span> postări
                 </div>
                 <div className="stat">
-                <span className="count">{900}</span> de urmăritori
+                <span className="count">{displayUser.followersCount}</span> de urmăritori
                 </div>
                 <div className="stat">
-                <span className="count">{200}</span> de urmăriri
+                <span className="count">{displayUser.followingCount}</span> de urmăriri
                 </div>
             </div>
             <div className="bio">

@@ -18,6 +18,6 @@
 
         public string Username  { get; set; }
 
-        public string user_iamge_path { get; set; }
+        public string user_image_path { get; set; }
     }
 }

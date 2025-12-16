@@ -52,7 +52,10 @@ function PostContainer(){
                 setHasMore(false);
             }
 
+            
+
             const transformedPosts = data.map((postData: PostApiType) => {
+                console.log(postData)
                 return{
                     id: postData.id,
                     owner: postData.owner,
@@ -62,7 +65,7 @@ function PostContainer(){
                     has_liked: false,
                     created: postData.created,
                     username: postData.username,
-                    user_image_path: postData.user_image_path,
+                    user_image_path: postData.user_image_path ? postData.user_image_path : "/assets/img/no_user.png",
                 }
             });
 

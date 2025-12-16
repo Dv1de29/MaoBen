@@ -17,6 +17,8 @@ export interface UserProfileType{
     description: string
     profilePictureUrl: string,
     privacy: boolean,
+    followingCount: number,
+    followersCount: number
     posts: PostType[],
 }
 
@@ -26,11 +28,13 @@ export interface UserProfileApiType{
     email: string,
     profilePictureUrl: string,
     privacy: boolean,
+    followingCount: number,
+    followersCount: number
     description: string,
 }
 
 
-// Define this alongside PostType or in a dedicated types file
+
 
 
 
