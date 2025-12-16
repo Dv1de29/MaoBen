@@ -27,19 +27,19 @@ namespace Backend.Controllers
         [HttpPost("{targetUsername}")]
         public async Task<IActionResult> FollowUser(string targetUsername)
         {
-            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var currentUserIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // Pas 1: Găsim User-ul țintă după NUME
+            var currentUser = await _userManager.FindByIdAsync(currentUserIdString!);
+            if (currentUser == null) return BadRequest("Eroare la identificarea utilizatorului curent.");
+
             var targetUser = await _userManager.FindByNameAsync(targetUsername);
             if (targetUser == null) return NotFound("Utilizatorul nu a fost găsit.");
 
-            // Pas 2: Verificăm să nu te urmărești singur
-            if (currentUserId == targetUser.Id)
+            if (currentUser.Id == targetUser.Id)
                 return BadRequest("Nu te poți urmări singur.");
 
-            // Pas 3: Verificăm relația existentă folosind ID-urile reale
             var existingFollow = await _context.UserFollows
-                .FindAsync(currentUserId, targetUser.Id);
+                .FindAsync(currentUser.Id, targetUser.Id);
 
             if (existingFollow != null)
             {
@@ -49,18 +49,25 @@ namespace Backend.Controllers
                 return BadRequest($"Urmărești deja utilizatorul {targetUsername}.");
             }
 
-            // Pas 4: Logica de Privacy
+            // Logica de Privacy
             var status = targetUser.Privacy ? FollowStatus.Pending : FollowStatus.Accepted;
 
             var newFollow = new UserFollow
             {
-                SourceUserId = currentUserId!,
-                TargetUserId = targetUser.Id, // Salvăm ID-ul în baza de date
+                SourceUserId = currentUser.Id,
+                TargetUserId = targetUser.Id,
                 Status = status,
                 CreatedAt = DateTime.UtcNow
             };
 
             _context.UserFollows.Add(newFollow);
+
+            if (status == FollowStatus.Accepted)
+            {
+                currentUser.FollowingCount++; 
+                targetUser.FollowersCount++;  
+            }
+
             await _context.SaveChangesAsync();
 
             if (status == FollowStatus.Pending)
@@ -73,16 +80,24 @@ namespace Backend.Controllers
         [HttpDelete("unfollow/{targetUsername}")]
         public async Task<IActionResult> UnfollowUser(string targetUsername)
         {
-            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var currentUserIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // Găsim ID-ul userului pe baza numelui
+            var currentUser = await _userManager.FindByIdAsync(currentUserIdString!);
+            if (currentUser == null) return BadRequest("Eroare utilizator curent.");
+
             var targetUser = await _userManager.FindByNameAsync(targetUsername);
             if (targetUser == null) return NotFound("Utilizatorul nu există.");
 
             var followRelation = await _context.UserFollows
-                .FindAsync(currentUserId, targetUser.Id);
+                .FindAsync(currentUser.Id, targetUser.Id);
 
             if (followRelation == null) return NotFound($"Nu îl urmărești pe {targetUsername}.");
+
+            if (followRelation.Status == FollowStatus.Accepted)
+            {
+                currentUser.FollowingCount--;
+                targetUser.FollowersCount--;
+            }
 
             _context.UserFollows.Remove(followRelation);
             await _context.SaveChangesAsync();
@@ -103,7 +118,6 @@ namespace Backend.Controllers
                 .Select(f => new FollowRequestDTO
                 {
                     // Returnăm Username ca să fie ușor de afișat pe Frontend
-                    RequestId = f.SourceUser.UserName!,
                     Username = f.SourceUser.UserName!,
                     ProfilePictureUrl = f.SourceUser.ProfilePictureUrl
                 })
@@ -116,21 +130,31 @@ namespace Backend.Controllers
         [HttpPut("accept/{sourceUsername}")]
         public async Task<IActionResult> AcceptRequest(string sourceUsername)
         {
-            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var currentUserIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // Găsim cine a trimis cererea
+            var currentUser = await _userManager.FindByIdAsync(currentUserIdString!);
+
+            if (currentUser == null) return BadRequest("Eroare la identificarea utilizatorului curent.");
+
+  
             var sourceUser = await _userManager.FindByNameAsync(sourceUsername);
             if (sourceUser == null) return NotFound("Utilizatorul sursă nu există.");
 
             var relation = await _context.UserFollows
-                .FirstOrDefaultAsync(f => f.SourceUserId == sourceUser.Id && f.TargetUserId == currentUserId);
+                .FirstOrDefaultAsync(f => f.SourceUserId == sourceUser.Id && f.TargetUserId == currentUser.Id);
 
             if (relation == null) return NotFound("Cererea nu există.");
 
             if (relation.Status == FollowStatus.Accepted)
                 return BadRequest("Cererea este deja acceptată.");
 
+
             relation.Status = FollowStatus.Accepted;
+
+
+            currentUser.FollowersCount++;   
+            sourceUser.FollowingCount++;   
+
             await _context.SaveChangesAsync();
 
             return Ok(new { message = $"Cererea lui {sourceUsername} a fost acceptată." });
