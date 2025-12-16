@@ -17,7 +17,7 @@ function RegisterPage() {
 
     const [formData, setFormData] = useState({
         firstName: 'Ionut',
-        lastName: 'CuPulaMica',
+        lastName: 'C#',
         username: '',
         email: '',
         password: '',
@@ -207,7 +207,7 @@ function RegisterPage() {
                 </div>
             </div>
             <footer className="app-footer">
-                <p>© 2025 si Ionut inca o suge</p>
+                <p>© 2025 si Ionut inca nu stie fotbal</p>
             </footer>
         </div>
     );
