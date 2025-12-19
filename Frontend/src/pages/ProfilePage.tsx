@@ -8,7 +8,7 @@ import type { PostType, PostApiType, UserProfileType } from '../assets/types';
 
 
 import { useNavigate, useParams } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useUser } from '../context/UserContext';
 
 
@@ -26,8 +26,12 @@ const ProfilePage = () => {
     const [posts, setPosts] = useState<PostType[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
 
- 
+    const [doIFollow, setDoIFollow] = useState<"Accepted" | "None" | "Pending">("None");
     
+
+
+
+    //// For the number of followers to change when i FOllow and Unfollow, i should call setDsiplayUser and change it's followingCount
 
     //fetching my User + Posts
     useEffect(() => {
@@ -107,24 +111,73 @@ const ProfilePage = () => {
 
         loadData();
 
-    }, [usernamePath, contextUser, isMyProfile])
+    }, [usernamePath, contextUser, isMyProfile, doIFollow])
+    ///maybe erase doIFollow if i dont want displayUser to change the followingCount
 
-    const handleFollow = () => {
+
+    /// see if i follow him
+    useEffect(() => {
+        if ( isMyProfile ) return;
+
+        console.log("ENTERED USEEFFECT SETDOIFOLLOW AND isMyProfile is false")
+
+        const setFollow = async () => {
+            const token = sessionStorage.getItem("userToken")
+    
+            try{
+                const res = await fetch(`/api/Follow/status/${usernamePath}`, {
+                    method: "GET",
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                })
+
+                if ( !res.ok){
+                    throw new Error(`Response error: ${res.status}, ${res.statusText}`)
+                }
+
+                const data = await res.json();
+
+                setDoIFollow(data.status);
+    
+            } catch (e){
+                console.error("Error at follow check: ", e)
+            }
+        }
+
+        setFollow()
+
+    }, [isMyProfile, usernamePath])
+
+
+
+    const handleFollow = useCallback(() => {
         const follow = async () => {
+
+            if ( isMyProfile ) return;
+
             const token = sessionStorage.getItem("userToken");
 
             try{
-                const res = await fetch(`/api/Follow/${usernamePath}`, {
-                    method: "POST",
+                const res = await fetch(`/api/Follow/${doIFollow !== "None" ? "unfollow/" : ""}${usernamePath}`, {
+                    method: `${doIFollow !== "None" ? "DELETE" : "POST"}`,
                     headers: {
                         "Authorization": `Bearer ${token}`,
                         'Content-Type': 'application/json',
                     }
                 });
 
+                console.log(doIFollow)
+                console.log(`URL: /api/Follow/${doIFollow !== "None" ? "unfollow/" : ""}${usernamePath}`)
+                console.log(`METHOD: ${doIFollow !== "None" ? "DELETE" : "POST"}`)
+
                 if ( !res.ok ){
                     throw new Error(`${res.status}, ${res.statusText}`)
                 }
+
+                setDoIFollow(doIFollow === "None" ? `${!displayUser?.privacy ? "Accepted" : "Pending"}` : "None")
+
+                console.log("Changed doIFollow to ", doIFollow)
 
             } catch(e){
                 console.error("Follow error: ", e);
@@ -135,7 +188,7 @@ const ProfilePage = () => {
         }
 
         follow();
-    }
+    }, [doIFollow, usernamePath, displayUser])
 
     if (!displayUser && loading) return <div className="loading" style={{color: "white"}}>Loading...</div>;
 
@@ -188,7 +241,9 @@ const ProfilePage = () => {
         )}
         {!isMyProfile && (
             <div className="actions">
-                <button className="primary-button" onClick={handleFollow}>Follow</button>
+                <button className="primary-button" onClick={handleFollow}>
+                    {doIFollow !== "None" ? "Unfollow" : "Follow"}
+                </button>
             </div>
         )}
 

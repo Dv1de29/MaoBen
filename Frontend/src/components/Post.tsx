@@ -50,12 +50,12 @@ const Post = memo(({post, onToggleLike}: PostProps) => {
         return 'Just now';
     }
 
-    console.log(post)
-
     return(
         <div className="card">
             <div className="header">
-                <img className="profile-pic" src={post.user_image_path} alt="Avatar" /> 
+                <img className="profile-pic" src={post.user_image_path} alt="Avatar" onClick={() => {
+                    navigate(`/profile/${post.username}`)
+                }}/> 
         
                 <span className="username" onClick={() => {
                     navigate(`/profile/${post.username}`)

@@ -55,7 +55,6 @@ function PostContainer(){
             
 
             const transformedPosts = data.map((postData: PostApiType) => {
-                console.log(postData)
                 return{
                     id: postData.id,
                     owner: postData.owner,
