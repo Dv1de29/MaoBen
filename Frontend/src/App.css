@@ -74,6 +74,10 @@ body {
   transition: margin-left 0.3s ease-in-out; /* Smoothly slide content left/right */
 }
 
+.app-main.no-nav{
+    margin-left: 0;
+}
+
 /* If navbar shrinks, content margin must shrink too */
 .app-main.main-narrow {
   margin-left: 72px; 

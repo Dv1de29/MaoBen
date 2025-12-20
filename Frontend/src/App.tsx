@@ -30,7 +30,7 @@ function Layout(){
             <div className="app-layout"> 
                 {!isLogin && <NavBar />}
 
-                <main className="app-main">
+                <main className={`app-main ${isLogin ? "no-nav" : ""}`}>
                     <Routes>
                         <Route path='/' element={<HomePage />} />
                         <Route path='/login' element={<LoginPage />} />

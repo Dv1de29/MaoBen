@@ -61,3 +61,12 @@ export interface PostApiType {
     username: string,
     user_image_path: string,
 }
+
+
+
+
+export interface UsersSearchApiType{
+    username: string,
+    name: string,
+    profilePictureUrl: string,
+}

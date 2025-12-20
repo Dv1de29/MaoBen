@@ -78,7 +78,7 @@ function NavBar(){
         </nav>
 
         {/* 5. The Slide-out Search Drawer */}
-        <SearchDrawer isOpen={isSearchOpen}/>
+        <SearchDrawer isOpen={isSearchOpen} setIsOpen={setIsSearchOpen}/>
         </>
     )
 }
