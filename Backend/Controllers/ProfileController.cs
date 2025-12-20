@@ -173,6 +173,50 @@ namespace Backend.Controllers
         }
 
 
+        [HttpGet("allUsers/{searchValue?}")]
+        public async Task<IActionResult> GetAllUsers(string searchValue)
+        {
+            List<GetAllProfilesDTO> users;
+
+            if (string.IsNullOrEmpty(searchValue))
+            {
+                users = await _userManager.Users
+                                    .AsNoTracking()
+                                    .Select(u => new GetAllProfilesDTO
+                                    {
+                                        name = u.FullName,
+                                        username = u.UserName,
+                                        ProfilePictureUrl = u.ProfilePictureUrl,
+                                    })
+                                    .Take(30)
+                                    .ToListAsync();
+            }
+            else
+            {
+                users = await _userManager.Users
+                                    .AsNoTracking()
+                                    .Where(u => u.UserName.Contains(searchValue) || (u.FirstName + " " + u.LastName).Contains(searchValue))
+                                    .Select(u => new GetAllProfilesDTO
+                                    {
+                                        name = u.FullName,
+                                        username = u.UserName,
+                                        ProfilePictureUrl = u.ProfilePictureUrl,
+                                    })
+                                    .Take(30)
+                                    .ToListAsync();
+            }
+
+
+
+            if ( users == null)
+            {
+                return Ok(new List<GetAllProfilesDTO>());
+            }
+
+            return Ok(users);
+        }
+
+
         [HttpPost("upload_image")]
         [Consumes("multipart/form-data")]
         [ApiExplorerSettings(IgnoreApi = true)]
