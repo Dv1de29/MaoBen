@@ -7,7 +7,7 @@ import type { PostType, PostApiType, UserProfileType } from '../assets/types';
 
 
 
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import { useUser } from '../context/UserContext';
 
@@ -261,7 +261,17 @@ const ProfilePage = () => {
             )}
         <div className="photo-grid">
             {posts.map(post => (
-                <div className="grid-item" key={post.id}><img src={post.img_path} alt="Post 1" /></div>
+                <Link 
+                    to={`/p/${post.id}`} 
+                    state={{ background: {
+                        pathname: location.pathname,
+                        search: location.search,
+                        hash: location.hash,
+                    } }} 
+                    key={post.id}
+                >
+                    <div className="grid-item" ><img src={post.img_path} alt="Post 1" /></div>
+                </Link>
             ))}
         </div>
         </div>

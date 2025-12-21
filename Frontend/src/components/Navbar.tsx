@@ -7,7 +7,7 @@ import { useUser } from "../context/UserContext";
 import SearchDrawer from "./SearchDrawer";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faHouse, faMagnifyingGlass, faPlus, faSignOut, faXmark, faCircleXmark } from '@fortawesome/free-solid-svg-icons';
+import { faHouse, faMagnifyingGlass, faPlus, faSignOut, faMessage, faUsers, faXmark, faCircleXmark } from '@fortawesome/free-solid-svg-icons';
 
 interface UserNav{
     userName: string,
@@ -58,6 +58,20 @@ function NavBar(){
                         <span className={isSearchOpen ? 'hidden-text' : ''}>Search</span>
                     </div>
                 </li>
+
+                <li>
+                <Link to="/direct" onClick={untoggleSearch}>
+                    <FontAwesomeIcon icon={faMessage}/>
+                    <span className={isSearchOpen ? 'hidden-text' : ''}>Chat</span>
+                </Link></li>
+
+                <li>
+                <Link to="/groups" onClick={untoggleSearch}>
+                    <FontAwesomeIcon icon={faUsers}/>
+                    <span className={isSearchOpen ? 'hidden-text' : ''}>Groups</span>
+                </Link></li>
+
+                
 
                 {/* LOGOUT */}
                 <li>

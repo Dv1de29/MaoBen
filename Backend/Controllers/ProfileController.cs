@@ -266,6 +266,7 @@ namespace Backend.Controllers
                     $"Eroare la salvarea fișierului: {ex.Message}");
             }
         }
+
         
         [NonAction]
         public async Task<IActionResult> GetFollowers()

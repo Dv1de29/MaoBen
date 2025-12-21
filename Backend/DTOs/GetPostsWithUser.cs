@@ -8,6 +8,8 @@
 
         public int Nr_likes { get; set; }
 
+        public bool Has_liked { get; set; }
+
         public int Nr_Comms { get; set; }
 
         public string Image_path { get; set; }

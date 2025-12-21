@@ -8,14 +8,6 @@ interface PostContainerProsp{
 }
 
 
-
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// REMEMBER THAT I MUST ADD THE USER INFO FOR EACH POST tO HAVE it UPPPP
-
-
-
-
 function PostContainer(){
     const [posts, setPosts] = useState<PostType[]>([]);
 
@@ -34,8 +26,14 @@ function PostContainer(){
 
         const skipValue = (page - 1) * ITEMS_PER_PAGE;
 
+        const token = sessionStorage.getItem("userToken");
+
         try{
-            const res = await fetch(`/api/posts/?count=${ITEMS_PER_PAGE}&skip=${skipValue}`)
+            const res = await fetch(`/api/posts/?count=${ITEMS_PER_PAGE}&skip=${skipValue}`, {
+                headers:{
+                    'Authorization': `Bearer ${token}`
+                }
+            })
     
             if ( !res.ok ){
                 if ( res.status === 204 || res.status === 404 || res.status === 400){
@@ -52,7 +50,6 @@ function PostContainer(){
                 setHasMore(false);
             }
 
-            
 
             const transformedPosts = data.map((postData: PostApiType) => {
                 return{
@@ -61,7 +58,7 @@ function PostContainer(){
                     img_path: postData.image_path,
                     nr_likes: postData.nr_likes,
                     nr_comm: postData.nr_comms,
-                    has_liked: false,
+                    has_liked: postData.has_liked,
                     created: postData.created,
                     username: postData.username,
                     user_image_path: postData.user_image_path ? postData.user_image_path : "/assets/img/no_user.png",
@@ -117,16 +114,39 @@ function PostContainer(){
     }, [loading, hasMore, fetchMyPosts, posts.length]);
 
 
-    const handleLike = useCallback((id: number) => {
+    const handleLike = useCallback((id: number, likeState: boolean) => {
+        const token = sessionStorage.getItem("userToken")
+
         setPosts(prev => prev.map(p => {
             if ( p.id === id ){
+                let newCount = p.nr_likes;
+                
+                // Safety check: Don't double count if state is already consistent
+                if (likeState && !p.has_liked) {
+                    newCount++;
+                } else if (!likeState && p.has_liked) {
+                    newCount--;
+                }
                 return{
                     ...p,
-                    has_liked: true,
+                    has_liked: likeState,
+                    nr_likes: newCount < 0 ? 0 : newCount,
                 }
             }
             return p;
         }))
+
+        fetch(`/api/Likes/toggle/${id}?likeState=${likeState}`, {
+            method: "POST",
+            keepalive: true, // Critical for refresh
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
+        }).catch(e => {
+            console.error("HandleLike Error: ", e);
+            // Optional: Revert UI state here if needed
+        });
+
     }, [])
 
     return(

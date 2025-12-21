@@ -56,6 +56,7 @@ export interface PostApiType {
     owner: string;
     image_path: string;
     nr_likes: number;
+    has_liked : boolean,
     nr_comms: number; 
     created: string,
     username: string,
@@ -69,4 +70,21 @@ export interface UsersSearchApiType{
     username: string,
     name: string,
     profilePictureUrl: string,
+}
+
+
+
+
+
+export interface CommentApiType{
+    id: number,
+    content: string,
+    createdAt: string,
+    username: string,
+    profilePictureUrl: string,
+}
+
+export interface CommentPostDTO{
+    postId: number,
+    content: string
 }

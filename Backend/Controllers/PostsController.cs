@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
+using System.Security.Claims;
 
 namespace Backend.Controllers
 {
@@ -34,6 +35,8 @@ namespace Backend.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetPostID(int id)
         {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             var post = await _context.Posts
                                     .Include(p => p.User)
                                     .Select(p => new GetPostsWithUser // Project directly to DTO
@@ -46,7 +49,8 @@ namespace Backend.Controllers
                                         Description = p.Description,
                                         Created = p.Created,
                                         Username = p.User.UserName, // Flattened relationship
-                                        user_image_path = p.User.ProfilePictureUrl
+                                        user_image_path = p.User.ProfilePictureUrl,
+                                        Has_liked = _context.PostLikes.Any(pl => pl.PostId == p.Id && pl.UserId == currentUserId),
                                     })
                                     .FirstOrDefaultAsync(p => p.Id == id);
                                     
@@ -90,6 +94,7 @@ namespace Backend.Controllers
                     // MAKE SURE your ApplicationUser class has a property for the image.
                     // If it is named differently (e.g. ProfilePicture), change the right side below:
                     user_image_path = p.User.ProfilePictureUrl,
+                    Has_liked = _context.PostLikes.Any(pl => pl.PostId == p.Id && pl.UserId == userId),
                 })
                 .ToListAsync();
 
@@ -103,6 +108,8 @@ namespace Backend.Controllers
             )
         {
             int limit = Math.Min(count, MaxPostsLimit);
+
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             var posts = await _context.Posts
                 .AsNoTracking() // Optimization: Read-only, so we don't need tracking
@@ -125,6 +132,9 @@ namespace Backend.Controllers
                     // MAKE SURE your ApplicationUser class has a property for the image.
                     // If it is named differently (e.g. ProfilePicture), change the right side below:
                     user_image_path = p.User.ProfilePictureUrl,
+
+
+                    Has_liked = _context.PostLikes.Any(pl => pl.PostId == p.Id && pl.UserId == currentUserId),
                 })
                 .ToListAsync();
 
