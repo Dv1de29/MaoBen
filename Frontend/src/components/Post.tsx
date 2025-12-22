@@ -218,6 +218,13 @@ const Post = memo(({post, onToggleLike}: PostProps) => {
             </div>
             <img src={post.img_path} alt="" onDoubleClick={() => {handleLike()}}/>  
             <span className='date-created'>{getTimeAgo(post.created)}</span>            
+            <span className='description'>
+                <span className='description-owner'>
+                    <img src={post.user_image_path} alt="" />
+                    <span>{post.username}</span>
+                </span>
+                <span className='description-content'>{post.description}</span>
+            </span>
             <div className="reactions">
                 <button style={{backgroundColor: "transparent", border: "none"}}>
                     <HeartIcon 

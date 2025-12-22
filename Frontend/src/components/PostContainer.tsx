@@ -50,12 +50,13 @@ function PostContainer(){
                 setHasMore(false);
             }
 
-
+            console.log(data)
             const transformedPosts = data.map((postData: PostApiType) => {
                 return{
                     id: postData.id,
                     owner: postData.owner,
                     img_path: postData.image_path,
+                    description: postData.description,
                     nr_likes: postData.nr_likes,
                     nr_comm: postData.nr_comms,
                     has_liked: postData.has_liked,

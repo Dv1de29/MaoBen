@@ -52,6 +52,34 @@
     padding: 5px 10px;
 }
 
+.card .description{
+    width: 100%;
+    padding: 0.1rem 0.5rem;
+}
+
+.card .description .description-owner{
+    width: fit-content;
+    margin-right: 10px;
+    font-weight: bolder;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    vertical-align: center;
+}
+
+.card .description .description-owner img{
+    width: 1rem;
+    aspect-ratio:  1 / 1;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: center;
+}
+
+.card .description .description-content{
+    /* justify-content: center;
+    align-items: center; */
+}
+
 /* Reactions footer stays fixed height */
 .card .reactions {
     flex: 0 0 auto; /* Don't grow, don't shrink */

@@ -92,6 +92,8 @@ function SearchDrawer({ isOpen, setIsOpen }: SearchDrawerProps) {
         
     }, [searchValue, searchForUsers]);
 
+    // console.log(displayUsers.length, searchValue.trim().length, loading)
+
     return (
         <div className={`search-drawer ${isOpen ? 'open' : ''}`}>
             <div className="drawer-header">
@@ -136,6 +138,11 @@ function SearchDrawer({ isOpen, setIsOpen }: SearchDrawerProps) {
                              </li>
                         ))}
                     </ul>
+                )}
+                {(displayUsers.length === 0 && !loading && searchValue.trim().length !== 0) && (
+                    <div className="no-users">
+                        <span>NO USERS FOUND</span>
+                    </div>
                 )}
                 {/* <div className="recent-header">
                     <h4>Recent</h4>

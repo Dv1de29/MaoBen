@@ -43,6 +43,7 @@ export interface PostType{
     id: number,
     owner: string,
     img_path: string,
+    description: string,
     nr_likes: number,
     has_liked: boolean,
     nr_comm: number,
@@ -55,6 +56,7 @@ export interface PostApiType {
     id: number;
     owner: string;
     image_path: string;
+    description: string,
     nr_likes: number;
     has_liked : boolean,
     nr_comms: number; 
