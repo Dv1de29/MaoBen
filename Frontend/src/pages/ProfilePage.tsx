@@ -23,11 +23,20 @@ const ProfilePage = () => {
     const [displayUser, setDisplayUser] = useState<UserProfileType | null>(
         isMyProfile ? contextUser : null
     );
+    
+    
     const [posts, setPosts] = useState<PostType[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
-
-    const [doIFollow, setDoIFollow] = useState<"Accepted" | "None" | "Pending">("None");
     
+    const [doIFollow, setDoIFollow] = useState<"Accepted" | "None" | "Pending">("None");
+
+    console.log(`User privacy: ${displayUser?.privacy === true} && !isMyProfile: ${!isMyProfile} && doIFollow: ${doIFollow}`)
+    
+    const userPrivacy = (displayUser?.privacy === true) &&  
+                        !isMyProfile &&               
+                        doIFollow !== "Accepted";
+
+    console.log(userPrivacy)
 
 
 
@@ -201,7 +210,7 @@ const ProfilePage = () => {
             <button className="icon-button"><FontAwesomeIcon icon={faArrowLeft} onClick={() => {navigate(-1)}}/></button>
             <h1>{displayUser.username}</h1>
             {isMyProfile && (
-                <button className="icon-button" onClick={() => {navigate(`edit`)}}><FontAwesomeIcon icon={faCog} /></button>
+                <button className="icon-button" onClick={() => {navigate(`/profile/edit`)}}><FontAwesomeIcon icon={faCog} /></button>
             )}
         </div>
 
@@ -235,7 +244,7 @@ const ProfilePage = () => {
 
         {isMyProfile && (
             <div className="actions">
-                <button className="primary-button" onClick={() => {navigate(`edit`)}}>Edit profile</button>
+                <button className="primary-button" onClick={() => {navigate(`/profile/edit`)}}>Edit profile</button>
                 {/* <button className="secondary-button">See archive</button> */}
             </div>
         )}
@@ -253,27 +262,34 @@ const ProfilePage = () => {
             <button className="tab"><FontAwesomeIcon icon={faBookmark} /></button>
             <button className="tab"><FontAwesomeIcon icon={faUserTag} /></button>
         </div> */}
-
-            {posts.length === 0 && (
-                <div className="no-posts-container">
-                    <span>This user has no posts</span>
-                </div>
-            )}
-        <div className="photo-grid">
-            {posts.map(post => (
-                <Link 
-                    to={`/p/${post.id}`} 
-                    state={{ background: {
-                        pathname: location.pathname,
-                        search: location.search,
-                        hash: location.hash,
-                    } }} 
-                    key={post.id}
-                >
-                    <div className="grid-item" ><img src={post.img_path} alt="Post 1" /></div>
-                </Link>
-            ))}
-        </div>
+        {userPrivacy === true && (
+            <div className="no-posts-container">
+                <span>This user is private</span>
+            </div>
+        )}
+        {userPrivacy === false && posts.length === 0 && (
+            <div className="no-posts-container">
+                <span>This user has no posts</span>
+            </div>
+        )}
+        
+        {userPrivacy === false && (
+            <div className="photo-grid">
+                {posts.map(post => (
+                    <Link 
+                        to={`/p/${post.id}`} 
+                        state={{ background: {
+                            pathname: location.pathname,
+                            search: location.search,
+                            hash: location.hash,
+                        } }} 
+                        key={post.id}
+                    >
+                        <div className="grid-item" ><img src={post.img_path} alt="Post 1" /></div>
+                    </Link>
+                ))}
+            </div>
+        )}
         </div>
     );
 };

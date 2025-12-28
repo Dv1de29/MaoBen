@@ -15,6 +15,7 @@ function PostContainer(){
     const ITEMS_PER_PAGE = 7;
 
     const [loading, setLoading] = useState<boolean>(false);
+    const [initialLoading, setInitialLoading] = useState<boolean>(true);
     const [hasMore, setHasMore] = useState<boolean>(true);
 
     const observerTargetRef = useRef<HTMLDivElement>(null);
@@ -73,6 +74,7 @@ function PostContainer(){
             console.error("Error at loading my posts: ", e)
         } finally{
             setLoading(false);
+            setInitialLoading(false);
         }
         
 
