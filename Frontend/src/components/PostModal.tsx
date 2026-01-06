@@ -6,6 +6,8 @@ import Post from './Post';
 
 import '../styles/PostModal.css'; // You'll need CSS for fixed positioning
 import type { PostType, PostApiType } from '../assets/types';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faXmark } from '@fortawesome/free-solid-svg-icons';
 
 function PostModal() {
     const navigate = useNavigate();
@@ -41,6 +43,7 @@ function PostModal() {
                         id: data.id,
                         owner: data.owner,
                         img_path: data.image_path,
+                        description: data.description,
                         nr_likes: data.nr_likes,
                         has_liked: data.has_liked,
                         nr_comm: data.nr_comms,
@@ -93,12 +96,16 @@ function PostModal() {
 
     return (
         <div className="modal-overlay" onClick={onClose}>
+            {/* Added styling to stop propagation on the whole content box */}
             <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <button className="close-btn" onClick={onClose}>X</button>
-                {/* <h1>Post Details for ID: {post_id}</h1>
-                <p>Imagine the full post content here...</p> */}
+                
+                {/* Close Button - Now Sticky */}
+                <button className="close-btn" onClick={onClose}>
+                    <FontAwesomeIcon icon={faXmark} />
+                </button>
+
                 {post && (
-                    <Post post={post} onToggleLike={handleLike}></Post>
+                    <Post post={post} onToggleLike={handleLike} />
                 )}
             </div>
         </div>

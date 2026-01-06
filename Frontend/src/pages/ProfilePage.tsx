@@ -251,7 +251,9 @@ const ProfilePage = () => {
         {!isMyProfile && (
             <div className="actions">
                 <button className="primary-button" onClick={handleFollow}>
-                    {doIFollow !== "None" ? "Unfollow" : "Follow"}
+                {
+                    doIFollow !== "None" ? (doIFollow === "Accepted" ? "Unfollow" : doIFollow) : "Follow"
+                }
                 </button>
             </div>
         )}

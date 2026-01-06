@@ -8,6 +8,18 @@ interface PostContainerProsp{
 }
 
 
+const SkeletonPost = () => (
+    <div className="skeleton-wrapper">
+        <div className="skeleton-header">
+            <div className="skeleton-avatar shim"></div>
+            <div className="skeleton-text shim"></div>
+        </div>
+        <div className="skeleton-image shim"></div>
+        <div className="skeleton-footer shim"></div>
+    </div>
+);
+
+
 function PostContainer(){
     const [posts, setPosts] = useState<PostType[]>([]);
 
@@ -101,8 +113,8 @@ function PostContainer(){
 
         const observer = new IntersectionObserver(ObserverCall, {
             root: null,
-            rootMargin: '0px',
-            threshold: 1.0,
+            rootMargin: '200px',
+            threshold: 0.1,
         });
 
         const currentTarget = observerTargetRef.current;
@@ -153,26 +165,37 @@ function PostContainer(){
     }, [])
 
     return(
-        <section className="card-container">
-            {posts.map(post => (
-                <div className="card_wrapper" key={post.id}>
-                    <Post
-                        key={post.id}
-                        post={post}
-                        onToggleLike={handleLike}
-                    />
+        <div className="feed-layout">
+
+            {/* Posts Feed */}
+            <section className="feed-stream">
+                {posts.map(post => (
+                    <article className="post-wrapper" key={post.id}>
+                        <Post 
+                            post={post} 
+                            onToggleLike={handleLike} 
+                        />
+                    </article>
+                ))}
+
+                {/* Loading State */}
+                <div ref={observerTargetRef} className="loading-trigger">
+                    {(initialLoading || loading) && hasMore && (
+                        <>
+                            <SkeletonPost />
+                            <SkeletonPost />
+                        </>
+                    )}
                 </div>
-            ))}
-            {hasMore ? (
-                <div className="observer" ref={observerTargetRef} style={{height: 20, textAlign: 'center'}}>
-                    {loading ? 'Loading...' : 'Scroll down'}
-                </div>
-            ) : (
-                <div style={{ textAlign: 'center', padding: '10px', color: '#888' }}>
-                    --- End of Posts ---
-                </div>
-            )}
-        </section>
+
+                {!hasMore && posts.length > 0 && (
+                    <div className="end-of-feed">
+                        <div className="check-icon">✓</div>
+                        <p>You're all caught up</p>
+                    </div>
+                )}
+            </section>
+        </div>
     )
 }
 

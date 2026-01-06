@@ -77,7 +77,7 @@
     padding: 10px 0;
 }
 
-.search-list .search-item {
+.search-list .req-item {
     width: 100%;
     padding: 10px 24px; /* Horizontal padding matching header */
     display: flex;
@@ -87,13 +87,14 @@
     transition: background-color 0.2s;
     box-sizing: border-box;
     cursor: pointer;
+    position: relative;
 }
 
-.search-list .search-item:hover {
+.search-list .req-item:hover {
     background-color: rgba(255,255,255,0.05);
 }
 
-.search-item img {
+.req-item img {
     width: 44px; /* Fixed sizing */
     height: 44px;
     border-radius: 50%;
@@ -101,19 +102,19 @@
     border: 1px solid rgba(255,255,255,0.1);
 }
 
-.search-item .user-info {
+.req-item .user-info {
     display: flex;
     flex-direction: column;
     justify-content: center;
 }
 
-.search-item .user-info span {
+.req-item .user-info span {
     color: white;
     font-size: 14px;
     font-weight: 600;
 }
 
-.search-item .user-info small {
+.req-item .user-info small {
     color: #94a3b8;
     font-size: 13px;
 }
@@ -126,4 +127,56 @@
     justify-content: center;
     color: #64748b;
     font-size: 14px;
+}
+
+
+.req-action-btn {
+    /* Push to the far right */
+    margin-left: auto; 
+    
+    /* Styling */
+    background-color: #334155; /* Slate-700 (Subtle) */
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 2; /* Ensures it sits above the list item click area visually */
+}
+
+.req-action-btn:hover {
+    background-color: #0ea5e9; /* Your Accent Blue */
+    transform: translateY(-1px);
+}
+
+/* Optional: Active/Click effect */
+.req-action-btn:active {
+    transform: translateY(0);
+    opacity: 0.8;
+}
+
+
+.btn-reject {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%; /* Makes it a perfect circle */
+    
+    /* Default State: Faint Red Background with Red Icon */
+    background-color: rgba(239, 68, 68, 0.15); 
+    color: #ef4444; /* Tailwind 'red-500' */
+}
+
+
+.btn-reject:hover {
+    background-color: #ef4444;
+    color: white;
+    transform: scale(1.1); /* Slight pop effect */
+}
+
+/* Active Click State */
+.btn-reject:active {
+    transform: scale(0.95);
 }
