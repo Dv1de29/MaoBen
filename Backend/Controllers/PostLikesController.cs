@@ -21,7 +21,7 @@ namespace Backend.Controllers
 
         // POST: api/Likes/toggle/{postId}
         [HttpPost("toggle/{postId}")]
-        public async Task<IActionResult> ToggleLike(int postId)
+        public async Task<IActionResult> ToggleLike(int postId,[FromQuery] bool likeState)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (userId == null) return Unauthorized();
@@ -29,31 +29,38 @@ namespace Backend.Controllers
             var post = await _context.Posts.FindAsync(postId);
             if (post == null) return NotFound("Postarea nu a fost găsită.");
 
+
             // Verificăm dacă există deja un like de la acest user
             var existingLike = await _context.PostLikes
                 .FirstOrDefaultAsync(pl => pl.PostId == postId && pl.UserId == userId);
 
-            bool isLiked;
+            bool isLiked = (existingLike != null);
 
-            if (existingLike != null)
+            if (likeState)
             {
-                // -- UNLIKE --
-                _context.PostLikes.Remove(existingLike);
-                post.Nr_likes--; // Scădem contorul
-                if (post.Nr_likes < 0) post.Nr_likes = 0; // Siguranță
-                isLiked = false;
+                if (existingLike == null)
+                {
+                    // -- LIKE --
+                    var newLike = new PostLike
+                    {
+                        PostId = postId,
+                        UserId = userId
+                    };
+                    _context.PostLikes.Add(newLike);
+                    post.Nr_likes++; // Creștem contorul
+                    isLiked = true;
+                }
             }
             else
             {
-                // -- LIKE --
-                var newLike = new PostLike
+                if (existingLike != null)
                 {
-                    PostId = postId,
-                    UserId = userId
-                };
-                _context.PostLikes.Add(newLike);
-                post.Nr_likes++; // Creștem contorul
-                isLiked = true;
+                    // -- UNLIKE --
+                    _context.PostLikes.Remove(existingLike);
+                    post.Nr_likes--; // Scădem contorul
+                    if (post.Nr_likes < 0) post.Nr_likes = 0; // Siguranță
+                    isLiked = false;
+                }
             }
 
             await _context.SaveChangesAsync();

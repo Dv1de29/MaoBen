@@ -9,18 +9,22 @@ import CloseLock from '../assets/svg/lock-close-icon.svg'
 
 
 import '../styles/LoginPage.css';
+import { useUser } from '../context/UserContext';
 
 function RegisterPage() {
     const navigate = useNavigate();
+    const { refreshUser } = useUser();
 
     const [formData, setFormData] = useState({
         firstName: 'Ionut',
-        lastName: 'CuPulaMica',
+        lastName: 'C#',
         username: '',
         email: '',
         password: '',
         confirmPassword: '',
     });
+
+    const [error, setError] = useState<string>("")
 
     const [errorMessage, setErrorMessage] = useState({
         emailMessage: "",
@@ -80,7 +84,7 @@ function RegisterPage() {
         // alert('Login Submitted: Unde e baza de date Ionute');
         const fetchReg = async () => {
             try{
-                const res = await fetch("http://localhost:5000/api/auth/register", {
+                const res = await fetch("/api/auth/register", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
@@ -88,10 +92,9 @@ function RegisterPage() {
                     body: JSON.stringify(formData)
                 });
 
-                console.log(formData)
-
                 if ( !res.ok ) {
-                    throw new Error(`Response not ok: ${res.status}, ${res.statusText}`)
+                    const errorData = await res.json();
+                    throw new Error(errorData || `Response not ok: ${res.status}, ${res.statusText}`);
                 }
 
                 const data = await res.json();
@@ -100,9 +103,13 @@ function RegisterPage() {
                 sessionStorage.setItem("userName", data.username)
                 sessionStorage.setItem("userRole", data.role);
 
+                refreshUser();
                 navigate("/")
-            } catch(e){
-                console.log("Register failed:", e)
+            
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } catch(e: any){
+                console.error("Register failed:", e);
+                setError(e.toString())
             }
         }
 
@@ -116,6 +123,9 @@ function RegisterPage() {
                 <p className="login-subtitle">Please enter your details to sign in.</p>
                 
                 <form onSubmit={handleSubmit}>
+                    {error && (
+                    <div className="error-message" style={{color: 'red', marginBottom: '10px'}}>{error}</div>
+                    )}
                     <div className="form-group">
                         <label htmlFor="username">Username</label>
                         <div className="input-container">
@@ -197,7 +207,7 @@ function RegisterPage() {
                 </div>
             </div>
             <footer className="app-footer">
-                <p>© 2025 si Ionut inca o suge</p>
+                <p>© 2025 si Ionut inca nu stie fotbal</p>
             </footer>
         </div>
     );

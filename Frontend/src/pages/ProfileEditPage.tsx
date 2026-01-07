@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { UserProfileApiType, UserSettingsType } from '../assets/types'; // Adjust path as needed
+import type { UserProfileApiType, UserSettingsType } from '../assets/types'; 
+
+import { useUser } from '../context/UserContext'; // <--- Add this
 
 
 import '../styles/ProfileEditPage.css'
@@ -15,6 +17,8 @@ const INITIAL_USER: UserSettingsType = {
 
 const EditProfilePage = () => {
     const navigate = useNavigate();
+    const { refreshUser } = useUser();
+
 
     const [formData, setFormData] = useState<Omit<UserSettingsType, 'id'>>({
         userName: INITIAL_USER.userName,
@@ -36,7 +40,7 @@ const EditProfilePage = () => {
             try{
                 const token = sessionStorage.getItem("userToken");
 
-                const res = await fetch(`http://localhost:5000/api/Profile`, {
+                const res = await fetch(`/api/Profile`, {
                     method: "GET",
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -113,7 +117,7 @@ const EditProfilePage = () => {
 
         try{
             const token = sessionStorage.getItem("userToken");
-            const res = await fetch("http://localhost:5000/api/Profile/upload_image", {
+            const res = await fetch("/api/Profile/upload_image", {
                 method: "POST",
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -149,7 +153,7 @@ const EditProfilePage = () => {
             try{
                 const token = sessionStorage.getItem("userToken");
 
-                const res = await fetch(`http://localhost:5000/api/Profile`, {
+                const res = await fetch(`/api/Profile`, {
                     method: "PUT",
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -165,6 +169,8 @@ const EditProfilePage = () => {
                 if ( !res.ok ){
                     throw new Error(`Fetching error: ${res.status}, ${res.statusText}`);
                 }
+
+                await refreshUser();
 
                 navigate(-1); 
 

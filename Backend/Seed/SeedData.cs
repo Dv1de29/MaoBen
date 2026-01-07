@@ -1,4 +1,5 @@
-﻿using Backend.DTOs;
+﻿using Backend.Data;
+using Backend.DTOs;
 using Backend.Models;
 using Microsoft.AspNetCore.Identity;
 
@@ -9,19 +10,32 @@ namespace Backend.Seed
         public static async Task SeedUsersAsync(IServiceProvider serviceProvider)
         {
             // Get the required services
+            var context = serviceProvider.GetRequiredService<AppDbContext>();
             var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+
+            string[] roleNames = { "Admin", "User" };
+            foreach (var roleName in roleNames)
+            {
+                var roleExist = await roleManager.RoleExistsAsync(roleName);
+                if (!roleExist)
+                {
+                    // Create the roles and wait for them to save
+                    await roleManager.CreateAsync(new IdentityRole(roleName));
+                }
+            }
 
             // Define the 5 users to be created
             var usersToSeed = new List<UserSeedData>
-        {
-            new UserSeedData("David", "Barbu", "david_florian", "david@test.com", "David29!"),
-            new UserSeedData("Ionut", "FIlote", "filote_ionut", "fifi@test.com", "Fifi7cm!"),
-            new UserSeedData("Alex", "Popescu", "alex.p", "alex.p@example.com", "SecurePwd1!"),
-            new UserSeedData("Maria", "Ionescu", "maria.i", "maria.i@example.com", "SecurePwd2!"),
-            new UserSeedData("Ionut", "Vasilescu", "ionut.v", "ionut.v@example.com", "SecurePwd3!"),
-            new UserSeedData("Elena", "Gheorghe", "elena.g", "elena.g@example.com", "SecurePwd4!"),
-            new UserSeedData("Radu", "Dumitru", "radu.d", "radu.d@example.com", "SecurePwd5!"),
-        };
+            {
+                new UserSeedData("David", "Barbu", "david_florian", "david@test.com", "David29!", "be_assets/img/ben1.jpg"),
+                new UserSeedData("Ionut", "FIlote", "filote_ionut", "fifi@test.com", "Fifi7cm!"),
+                new UserSeedData("Alex", "Popescu", "alex.p", "alex.p@example.com", "SecurePwd1!", "be_assets/img/ben1.jpg"),
+                new UserSeedData("Maria", "Ionescu", "maria.i", "maria.i@example.com", "SecurePwd2!", "be_assets/img/ben1.jpg"),
+                new UserSeedData("Ionut", "Vasilescu", "ionut.v", "ionut.v@example.com", "SecurePwd3!", "be_assets/img/ben1.jpg"),
+                new UserSeedData("Elena", "Gheorghe", "elena.g", "elena.g@example.com", "SecurePwd4!", "be_assets/img/ben1.jpg"),
+                new UserSeedData("Radu", "Dumitru", "radu.d", "radu.d@example.com", "SecurePwd5!", "be_assets/img/ben1.jpg"),
+            };
 
             foreach (var seedUser in usersToSeed)
             {
@@ -58,6 +72,70 @@ namespace Backend.Seed
                         // Log or handle errors if user creation fails
                         Console.WriteLine($"Error creating user {seedUser.Username}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
                     }
+                }
+            }
+
+            if (!context.Posts.Any())
+            {
+                // Fetch the REAL users from DB to get valid GUIDs
+                var userDavid = await userManager.FindByNameAsync("david_florian");
+                var userIonut = await userManager.FindByNameAsync("filote_ionut");
+                var userMaria = await userManager.FindByNameAsync("maria.i");
+
+                // Ensure users exist before trying to create posts for them
+                if (userDavid != null && userIonut != null && userMaria != null)
+                {
+                    var posts = new List<Posts>
+                    {
+                        // --- David's Posts ---
+                        new Posts {
+                            OwnerID = userDavid.Id, // Valid GUID from DB
+                            Nr_likes = 15,
+                            Nr_Comms = 2,
+                            Image_path = "/be_assets/img/ben1.jpg",
+                            Description = "First seeded post! Beautiful day. 🌲",
+                            Created = DateTime.UtcNow.AddDays(-10)
+                        },
+                        new Posts {
+                            OwnerID = userDavid.Id,
+                            Nr_likes = 250,
+                            Nr_Comms = 45,
+                            Image_path = "/be_assets/img/ben1.jpg",
+                            Description = "Coding late at night. 💻",
+                            Created = DateTime.UtcNow.AddDays(-2)
+                        },
+
+                        // --- Ionut's Posts ---
+                        new Posts {
+                            OwnerID = userIonut.Id,
+                            Nr_likes = 50,
+                            Nr_Comms = 10,
+                            Image_path = "/be_assets/img/download.jpg",
+                            Description = "City lights view. ✨",
+                            Created = DateTime.UtcNow.AddDays(-5)
+                        },
+                         new Posts {
+                            OwnerID = userIonut.Id,
+                            Nr_likes = 30,
+                            Nr_Comms = 5,
+                            Image_path = "/be_assets/img/ben1.jpg",
+                            Description = "Sunset vibes. 🌅",
+                            Created = DateTime.UtcNow.AddDays(-20)
+                        },
+
+                        // --- Maria's Posts ---
+                        new Posts {
+                            OwnerID = userMaria.Id,
+                            Nr_likes = 120,
+                            Nr_Comms = 25,
+                            Image_path = "/be_assets/img/download.jpg",
+                            Description = "New recipe attempt! 🍝",
+                            Created = DateTime.UtcNow.AddDays(-1)
+                        }
+                    };
+
+                    context.Posts.AddRange(posts);
+                    await context.SaveChangesAsync();
                 }
             }
         }

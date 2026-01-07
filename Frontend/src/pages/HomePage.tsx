@@ -4,8 +4,11 @@ import '../styles/HomePage.css';
 
 import { useNavigate } from 'react-router-dom';
 
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+/// A GOOD IMPLEMENTATION WOULD BE A GLOBAL STATE INSIDE A PROVIDER THAT HOLDS THE USER
+
+
 function HomePage() {
-    // const navigate = useNavigate()
 
     const circles = Array.from({length : 40}, (_, i) => {
         return {

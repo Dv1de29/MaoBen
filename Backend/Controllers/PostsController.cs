@@ -1,10 +1,14 @@
 
 using Backend.Data;
+using Backend.DTOs;
 using Backend.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
+using System.Security.Claims;
 
 namespace Backend.Controllers
 {
@@ -14,17 +18,42 @@ namespace Backend.Controllers
     {
         private readonly AppDbContext _context;
         private readonly int MaxPostsLimit = 50;
+        private readonly IWebHostEnvironment _webHostEnvironment;
 
-        public PostsController(AppDbContext context) {
+        public PostsController(AppDbContext context, IWebHostEnvironment webHostEnvironment) {
             _context = context;
+            _webHostEnvironment = webHostEnvironment;
+        }
+
+        private string GenerateRandomId()
+        {
+            Random random = new Random();
+            long randomNumber = random.Next(1000000000) + 1000000000L; // Asigur? 10 cifre
+            return randomNumber.ToString();
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetPostID(int id)
         {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             var post = await _context.Posts
                                     .Include(p => p.User)
+                                    .Select(p => new GetPostsWithUser // Project directly to DTO
+                                    {
+                                        Id = p.Id,
+                                        OwnerID = p.OwnerID,
+                                        Nr_likes = p.Nr_likes,
+                                        Nr_Comms = p.Nr_Comms,
+                                        Image_path = p.Image_path,
+                                        Description = p.Description,
+                                        Created = p.Created,
+                                        Username = p.User.UserName, // Flattened relationship
+                                        user_image_path = p.User.ProfilePictureUrl,
+                                        Has_liked = _context.PostLikes.Any(pl => pl.PostId == p.Id && pl.UserId == currentUserId),
+                                    })
                                     .FirstOrDefaultAsync(p => p.Id == id);
+                                    
 
             if (post == null)
             {
@@ -32,6 +61,44 @@ namespace Backend.Controllers
             }
 
             return Ok(post);
+        }
+
+        [Authorize] 
+        [HttpGet("my_posts")]
+        public async Task<IActionResult> GetMyPosts()
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized("User ID not found in token.");
+            }
+
+            var myPosts = await _context.Posts
+                .Include(p => p.User)
+                .Where(p => p.OwnerID == userId)
+                .OrderByDescending(p => p.Created)
+                .Select(p => new GetPostsWithUser
+                {
+                    Id = p.Id,
+                    OwnerID = p.OwnerID,
+                    Nr_likes = p.Nr_likes,
+                    Nr_Comms = p.Nr_Comms,
+                    Image_path = p.Image_path,
+                    Description = p.Description,
+                    Created = p.Created,
+
+                    // Map the data from the related User object
+                    Username = p.User.UserName,
+
+                    // MAKE SURE your ApplicationUser class has a property for the image.
+                    // If it is named differently (e.g. ProfilePicture), change the right side below:
+                    user_image_path = p.User.ProfilePictureUrl,
+                    Has_liked = _context.PostLikes.Any(pl => pl.PostId == p.Id && pl.UserId == userId),
+                })
+                .ToListAsync();
+
+            return Ok(myPosts);
         }
 
         [HttpGet]
@@ -42,12 +109,35 @@ namespace Backend.Controllers
         {
             int limit = Math.Min(count, MaxPostsLimit);
 
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             var posts = await _context.Posts
-                .Include(p => p.User)
-                .OrderByDescending(p => p.Id)
+                .AsNoTracking() // Optimization: Read-only, so we don't need tracking
+                .OrderByDescending(p => p.Created)
                 .Skip(skip)
                 .Take(limit)
+                .Select(p => new GetPostsWithUser
+                {
+                    Id = p.Id,
+                    OwnerID = p.OwnerID,
+                    Nr_likes = p.Nr_likes,
+                    Nr_Comms = p.Nr_Comms,
+                    Image_path = p.Image_path,
+                    Description = p.Description,
+                    Created = p.Created,
+
+                    // Map the data from the related User object
+                    Username = p.User.UserName,
+
+                    // MAKE SURE your ApplicationUser class has a property for the image.
+                    // If it is named differently (e.g. ProfilePicture), change the right side below:
+                    user_image_path = p.User.ProfilePictureUrl,
+
+
+                    Has_liked = _context.PostLikes.Any(pl => pl.PostId == p.Id && pl.UserId == currentUserId),
+                })
                 .ToListAsync();
+
 
             if (posts == null || !posts.Any())
             {
@@ -57,18 +147,18 @@ namespace Backend.Controllers
             return Ok(posts);
         }
 
-        [HttpGet("ByOwner/{ownerId}")]
-        public async Task<IActionResult> GetPostsByOwnerId(string ownerId)
+        [HttpGet("ByOwner/{ownerUsername}")]
+        public async Task<IActionResult> GetPostsByOwnerId(string ownerUsername)
         {
-            if (string.IsNullOrEmpty(ownerId))
+            if (string.IsNullOrEmpty(ownerUsername))
             {
-                return BadRequest("Owner ID cannot be empty.");
+                return BadRequest("Username cannot be empty.");
             }
 
             var posts = await _context.Posts
                 .Include(p => p.User)
-                .Where(p => p.OwnerID == ownerId)
-                .OrderByDescending(p => p.Id)
+                .Where(p => p.User.UserName!.ToLower() == ownerUsername.ToLower())
+                .OrderByDescending(p => p.Created)
                 .ToListAsync();
 
 
@@ -78,6 +168,71 @@ namespace Backend.Controllers
             //}
 
             return Ok(posts);
+        }
+
+        [Authorize]
+        [HttpPost("create_post")]
+        [Consumes("multipart/form-data")]
+        [ApiExplorerSettings(IgnoreApi = true)]
+        public async Task<IActionResult> CreatePost([FromForm] CreatePostDTO dto)
+        {
+            if (dto.Image == null || dto.Image.Length == 0)
+            {
+                return BadRequest("Image is required.");
+            }
+
+            if (!dto.Image.ContentType.StartsWith("image/"))
+            {
+                return BadRequest("File type is wrong and should be: image/");
+            }
+
+            string uniqueId = this.GenerateRandomId();
+            string extension = Path.GetExtension(dto.Image.FileName);
+            string fileName = uniqueId + extension;
+
+            string relativePath = $"/be_assets/img/posts/{fileName}";
+
+            string targetFolder = Path.Combine(_webHostEnvironment.WebRootPath, "be_assets", "img", "posts");
+            string physicalPath = Path.Combine(targetFolder, fileName);
+
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized("User ID not found in token.");
+            }
+
+            var newPost = new Posts
+            {
+                OwnerID = userId!,
+                Image_path = relativePath,
+                Description = dto.Description,
+                Created = DateTime.UtcNow,
+
+            };
+
+            try
+            {
+                if (!Directory.Exists(targetFolder))
+                {
+                    Directory.CreateDirectory(targetFolder);
+                }
+
+                using (var stream = new FileStream(physicalPath, FileMode.Create))
+                {
+                    await dto.Image.CopyToAsync(stream);
+                }
+
+                _context.Posts.Add(newPost);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Post created!", postId = newPost.Id, imageUrl = relativePath });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    $"Eroare la salvarea postarii: {ex.Message}");
+            }
         }
     }
 }

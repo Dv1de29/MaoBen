@@ -1,4 +1,6 @@
-﻿namespace Backend.Models
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace Backend.Models
 {
     public class Posts
     {
@@ -16,6 +18,7 @@
 
         public DateTime Created { get; set; }
 
+        [ForeignKey("OwnerID")]
         public ApplicationUser User { get; set; }
     }
 }

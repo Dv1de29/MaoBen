@@ -1,138 +1,223 @@
 import '../styles/ProfilePage.css'; // Assuming a CSS file for styles
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCog, faArrowLeft, faGlobe, faPlus, faTh, faBookmark, faUserTag } from '@fortawesome/free-solid-svg-icons';
+import { faCog, faArrowLeft, faGlobe } from '@fortawesome/free-solid-svg-icons';
 
-import type { PostType, PostApiType, UserProfileType, UserProfileApiType } from '../assets/types';
-
-
-
-import profilePic from '../assets/images/download.jpg'; // Replace with actual images
-import highlight1 from '../assets/images/download.jpg';
-import highlight2 from '../assets/images/download.jpg';
-import highlight3 from '../assets/images/download.jpg';
-import highlight4 from '../assets/images/download.jpg';
-
-import { useNavigate, useParams } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import type { PostType, PostApiType, UserProfileType } from '../assets/types';
 
 
 
-
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { useUser } from '../context/UserContext';
 
 
 const ProfilePage = () => {
     const navigate = useNavigate()
 
     const { usernamePath } = useParams();
+    const { user: contextUser } = useUser();
 
-    const initial_user: UserProfileType = {
-        username: "",
-        email: "",
-        privacy: false,
-        profilePictureUrl: "",
-        // name: "David",
-        description: "",
-        // nr_followers: 700,
-        // nr_following: 600,
-        posts: [],
-    }
+    const isMyProfile = !usernamePath || usernamePath === contextUser.username;
 
+    const [displayUser, setDisplayUser] = useState<UserProfileType | null>(
+        isMyProfile ? contextUser : null
+    );
+    
+    
     const [posts, setPosts] = useState<PostType[]>([]);
-    const [user, SetUser] = useState<UserProfileType>(initial_user)
+    const [loading, setLoading] = useState<boolean>(false);
+    
+    const [doIFollow, setDoIFollow] = useState<"Accepted" | "None" | "Pending">("None");
+
+    console.log(`User privacy: ${displayUser?.privacy === true} && !isMyProfile: ${!isMyProfile} && doIFollow: ${doIFollow}`)
+    
+    const userPrivacy = (displayUser?.privacy === true) &&  
+                        !isMyProfile &&               
+                        doIFollow !== "Accepted";
+
+    console.log(userPrivacy)
+
+
+
+    //// For the number of followers to change when i FOllow and Unfollow, i should call setDsiplayUser and change it's followingCount
 
     //fetching my User + Posts
     useEffect(() => {
-        const fetchMyPosts = async () => {
+
+        if (isMyProfile) {
+            setDisplayUser(contextUser); 
+        } else {
+            setDisplayUser(null); 
+        }
+
+        const loadData = async () => {
+            setLoading(true);
+            const token = sessionStorage.getItem("userToken");
+
             try{
-                const res = await fetch(`http://localhost:5000/api/posts/ByOwner/1`)
-        
-                if ( !res.ok ){
-                    throw new Error(`Response error: ${res.status},${res.statusText}`)
+
+                ///fetching user
+                let currentUserData = isMyProfile ? contextUser : null;
+
+                if (!isMyProfile) {
+                    const res = await fetch(`/api/Profile/${usernamePath}`, {
+                        method: "GET",
+                        headers: {
+                            "Authorization": `Bearer ${token}`,
+                            "Content-Type": "application/json",
+                        }
+                    });
+                    if (!res.ok) {
+                        throw new Error(`User ${usernamePath} not found: ${res.status}, ${res.statusText}`);
+                    }
+                    currentUserData = await res.json();
+                    setDisplayUser(currentUserData);
                 }
-    
-                const data = await res.json();
-    
-                const transformedPosts = data.map((postData: PostApiType) => {
-                    return{
+
+                if (!currentUserData) return;
+
+                /// fetching posts
+                let postsRes: Response;
+                if (isMyProfile) {
+                    postsRes = await fetch(`/api/Posts/my_posts`, {
+                        headers: { 
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': "application/json"
+                        }
+                    });
+                } else {
+                    
+                    postsRes = await fetch(`/api/Posts/ByOwner/${usernamePath}`, {
+                        headers: { 
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': "application/json"
+                        }
+                    });
+                }
+
+                if (postsRes.ok) {
+                    const data = await postsRes.json();
+                   
+                    
+                    const transformedPosts = data.map((postData: PostApiType) => ({
                         id: postData.id,
                         owner: postData.owner,
                         img_path: postData.image_path,
                         nr_likes: postData.nr_likes,
                         nr_comm: postData.nr_comms,
                         has_liked: false,
-                    }
-                });
-    
-                setPosts(transformedPosts);
-    
-            } catch(e){
-                console.error("Error at loading my posts: ", e)
-            }
-        }
-
-        const fetchUser = async () => {
-            try{
-                const token = sessionStorage.getItem("userToken");
-
-                const res = await fetch("http://localhost:5000/api/Profile", {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                })
-
-                if ( !res.ok ){
-                    throw new Error(`User error: ${res.status}, ${res.statusText}`);
+                    }));
+                    setPosts(transformedPosts);
                 }
 
-                const data: UserProfileApiType = await res.json();
+            } catch (e) {
+                console.error("Error loading profile:", e);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-                console.log(data)
+        loadData();
 
-                SetUser({
-                    username: data.username,
-                    email: data.email,
-                    profilePictureUrl: data.profilePictureUrl,
-                    privacy: data.privacy,
-                    description: data.description,
-                    posts: [],
+    }, [usernamePath, contextUser, isMyProfile, doIFollow])
+    ///maybe erase doIFollow if i dont want displayUser to change the followingCount
+
+
+    /// see if i follow him
+    useEffect(() => {
+        if ( isMyProfile ) return;
+
+        console.log("ENTERED USEEFFECT SETDOIFOLLOW AND isMyProfile is false")
+
+        const setFollow = async () => {
+            const token = sessionStorage.getItem("userToken")
+    
+            try{
+                const res = await fetch(`/api/Follow/status/${usernamePath}`, {
+                    method: "GET",
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
                 })
-                
 
-            } catch(e){
-                console.log("Error at fetching user: ", e);
+                if ( !res.ok){
+                    throw new Error(`Response error: ${res.status}, ${res.statusText}`)
+                }
+
+                const data = await res.json();
+
+                setDoIFollow(data.status);
+    
+            } catch (e){
+                console.error("Error at follow check: ", e)
             }
         }
 
-        // const uid = sessionStorage.getItem("userId");
+        setFollow()
 
-        // if ( !uid ){
-        //     console.error("NO USER ID");
-        //     return;
-        // }
+    }, [isMyProfile, usernamePath])
 
-        fetchUser()
-        fetchMyPosts(); 
 
-    }, [])
+
+    const handleFollow = useCallback(() => {
+        const follow = async () => {
+
+            if ( isMyProfile ) return;
+
+            const token = sessionStorage.getItem("userToken");
+
+            try{
+                const res = await fetch(`/api/Follow/${doIFollow !== "None" ? "unfollow/" : ""}${usernamePath}`, {
+                    method: `${doIFollow !== "None" ? "DELETE" : "POST"}`,
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                console.log(doIFollow)
+                console.log(`URL: /api/Follow/${doIFollow !== "None" ? "unfollow/" : ""}${usernamePath}`)
+                console.log(`METHOD: ${doIFollow !== "None" ? "DELETE" : "POST"}`)
+
+                if ( !res.ok ){
+                    throw new Error(`${res.status}, ${res.statusText}`)
+                }
+
+                setDoIFollow(doIFollow === "None" ? `${!displayUser?.privacy ? "Accepted" : "Pending"}` : "None")
+
+                console.log("Changed doIFollow to ", doIFollow)
+
+            } catch(e){
+                console.error("Follow error: ", e);
+            }
+            finally{
+                console.log("");
+            }
+        }
+
+        follow();
+    }, [doIFollow, usernamePath, displayUser])
+
+    if (!displayUser && loading) return <div className="loading" style={{color: "white"}}>Loading...</div>;
+
+    if (!displayUser) return <div className="not-found" style={{color: "white"}}>User not found</div>;
 
 
     return (
         <div className="profile-page dark-mode">
         <div className="header">
             <button className="icon-button"><FontAwesomeIcon icon={faArrowLeft} onClick={() => {navigate(-1)}}/></button>
-            <h1>{user.username}</h1>
-            {!usernamePath && (
-                <button className="icon-button" onClick={() => {navigate(`edit`)}}><FontAwesomeIcon icon={faCog} /></button>
+            <h1>{displayUser.username}</h1>
+            {isMyProfile && (
+                <button className="icon-button" onClick={() => {navigate(`/profile/edit`)}}><FontAwesomeIcon icon={faCog} /></button>
             )}
         </div>
 
         <div className="profile-header">
             <div className="profile-pic-container">
-            <img src={user.profilePictureUrl} alt="" className="profile-pic" />
-            <div className="notification-badge">Bun si tu Ionute</div>
+            <img src={displayUser.profilePictureUrl} alt="" className="profile-pic" />
+            {/* <div className="notification-badge">Bun si tu Ionute</div> */}
             </div>
             <div className="profile-info">
             <div className="stats">
@@ -140,67 +225,73 @@ const ProfilePage = () => {
                 <span className="count">{posts.length}</span> postări
                 </div>
                 <div className="stat">
-                <span className="count">{900}</span> de urmăritori
+                <span className="count">{displayUser.followersCount}</span> de urmăritori
                 </div>
                 <div className="stat">
-                <span className="count">{200}</span> de urmăriri
+                <span className="count">{displayUser.followingCount}</span> de urmăriri
                 </div>
             </div>
             <div className="bio">
                 <h2>
-                    {/* {user.name} */}
-                    {"David"}
+                    {/* {displayUser.name} */}
+                    {displayUser.name}
                 </h2>
-                <p><FontAwesomeIcon icon={faGlobe} /> {user.description}</p>
-                <p>{`@${user.username}`}</p>
+                <p><FontAwesomeIcon icon={faGlobe} /> {displayUser.description}</p>
+                <p>{`@${displayUser.username}`}</p>
             </div>
             </div>
         </div>
 
-        <div className="actions">
-            <button className="primary-button" onClick={() => {navigate(`edit`)}}>Edit profile</button>
-            <button className="secondary-button">See archive</button>
-        </div>
+        {isMyProfile && (
+            <div className="actions">
+                <button className="primary-button" onClick={() => {navigate(`/profile/edit`)}}>Edit profile</button>
+                {/* <button className="secondary-button">See archive</button> */}
+            </div>
+        )}
+        {!isMyProfile && (
+            <div className="actions">
+                <button className="primary-button" onClick={handleFollow}>
+                {
+                    doIFollow !== "None" ? (doIFollow === "Accepted" ? "Unfollow" : doIFollow) : "Follow"
+                }
+                </button>
+            </div>
+        )}
 
-        {/* <div className="highlights">
-            <div className="highlight">
-            <div className="highlight-img-container"><img src={highlight1} alt="Squirrel" /></div>
-            <p>❤️🐿️</p>
-            </div>
-            <div className="highlight">
-            <div className="highlight-img-container"><img src={highlight2} alt="Night" /></div>
-            <p>🤪</p>
-            </div>
-            <div className="highlight">
-            <div className="highlight-img-container"><img src={highlight3} alt="Dog" /></div>
-            <p>🐶 maestrul 🐶</p>
-            </div>
-            <div className="highlight">
-            <div className="highlight-img-container"><img src={highlight4} alt="Fans" /></div>
-            <p>🐶 💙 🐶</p>
-            </div>
-            <div className="highlight">
-            <div className="highlight-img-container add-new"><FontAwesomeIcon icon={faPlus} /></div>
-            <p>Nou</p>
-            </div>
-        </div> */}
 
-        <div className="tabs">
+        {/* <div className="tabs">
             <button className="tab active"><FontAwesomeIcon icon={faTh} /></button>
             <button className="tab"><FontAwesomeIcon icon={faBookmark} /></button>
             <button className="tab"><FontAwesomeIcon icon={faUserTag} /></button>
-        </div>
-
-            {posts.length === 0 && (
-                <div className="no-posts-container">
-                    <span>This user has no posts</span>
-                </div>
-            )}
-        <div className="photo-grid">
-            {posts.map(post => (
-                <div className="grid-item" key={post.id}><img src={post.img_path} alt="Post 1" /></div>
-            ))}
-        </div>
+        </div> */}
+        {userPrivacy === true && (
+            <div className="no-posts-container">
+                <span>This user is private</span>
+            </div>
+        )}
+        {userPrivacy === false && posts.length === 0 && (
+            <div className="no-posts-container">
+                <span>This user has no posts</span>
+            </div>
+        )}
+        
+        {userPrivacy === false && (
+            <div className="photo-grid">
+                {posts.map(post => (
+                    <Link 
+                        to={`/p/${post.id}`} 
+                        state={{ background: {
+                            pathname: location.pathname,
+                            search: location.search,
+                            hash: location.hash,
+                        } }} 
+                        key={post.id}
+                    >
+                        <div className="grid-item" ><img src={post.img_path} alt="Post 1" /></div>
+                    </Link>
+                ))}
+            </div>
+        )}
         </div>
     );
 };

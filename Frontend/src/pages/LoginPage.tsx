@@ -9,15 +9,20 @@ import CloseLock from '../assets/svg/lock-close-icon.svg'
 
 
 import '../styles/LoginPage.css';
+import { useUser } from '../context/UserContext';
 
 function LoginPage() {
     const navigate = useNavigate();
+
+    const { refreshUser } = useUser();
 
 
     const [formData, setFormData] = useState({
         usernameOrEmail: '',
         password: ''
     });
+
+    const [error, setError] = useState("");
 
     const [showPass, setShowPass] = useState(false)
 
@@ -36,28 +41,33 @@ function LoginPage() {
         const fetchLog = async () => {
             
             try{
-                const res = await fetch("http://localhost:5000/api/auth/login", {
+                const res = await fetch("/api/auth/login", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify(formData)
                 });
-
+                console.log("UNTIL THROW");
                 if ( !res.ok ) {
-                    throw new Error(`Response not ok: ${res.status}, ${res.statusText}`)
+                    const errorData = await res.json();
+                    throw new Error( errorData.message || `Response not ok: ${res.status}, ${res.statusText}`)
                 }
 
+                console.log("PASSED THROW");
                 const data = await res.json();
 
                 sessionStorage.setItem("userToken", data.token)
                 sessionStorage.setItem("userName", data.username)
                 sessionStorage.setItem("userRole", data.role);
 
+                refreshUser();
                 navigate("/");
 
-            } catch(e){
-                console.log("Login failed:", e)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } catch(e: any){
+                console.error("Login failed:", e)
+                setError(e.toString());
             }
         }
 
@@ -71,6 +81,9 @@ function LoginPage() {
                 <p className="login-subtitle">Please enter your details to sign in.</p>
                 
                 <form onSubmit={handleSubmit}>
+                    {error && (
+                    <div className="error-message" style={{color: 'red', marginBottom: '10px'}}>{error}</div>
+                    )}
                     <div className="form-group">
                         <label htmlFor="email">Email Address</label>
                         <div className="input-container">
@@ -115,7 +128,7 @@ function LoginPage() {
             </div>
             
             <footer className="app-footer">
-                <p>© 2025 si Ionut inca o suge</p>
+                <p>© 2025 si Ionut inca nu stie fotbal</p>
             </footer>
         </div>
     );
