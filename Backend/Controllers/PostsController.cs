@@ -1,4 +1,4 @@
-
+﻿
 using Backend.Data;
 using Backend.DTOs;
 using Backend.Models;
@@ -100,7 +100,147 @@ namespace Backend.Controllers
 
             return Ok(myPosts);
         }
+        [Authorize] // 1. Asigură-te că userul este logat
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeletePost(int id)
+        {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(currentUserId)) return Unauthorized();
 
+            var post = await _context.Posts.FindAsync(id);
+            if (post == null)
+            {
+                return NotFound("Postarea nu a fost găsită.");
+            }
+
+            // 4. LOGICA DE PERMISIUNI (Admin sau Owner)
+            // Verificăm dacă userul este proprietarul postării
+            bool isOwner = post.OwnerID == currentUserId;
+
+            // Verificăm dacă userul are rolul de Administrator
+            // Notă: Asigură-te că în JWT (AuthController) ai pus claim-ul de rol corect ("Administrator" sau "Admin")
+            bool isAdmin = User.IsInRole("Admin");
+
+            if (!isOwner && !isAdmin)
+            {
+                return StatusCode(403, "Nu ai permisiunea de a șterge această postare.");
+            }
+
+            // 5. (Opțional dar recomandat) Șterge și fișierul fizic (poza) de pe server
+            // Astfel nu rămâi cu poze "orfane" care ocupă spațiu degeaba
+            try
+            {
+                if (!string.IsNullOrEmpty(post.Image_path))
+                {
+                    // Image_path e de forma "/be_assets/...", scoatem primul slash pentru Path.Combine
+                    string relativePath = post.Image_path.TrimStart('/', '\\');
+                    string absolutePath = Path.Combine(_webHostEnvironment.WebRootPath, relativePath);
+
+                    if (System.IO.File.Exists(absolutePath))
+                    {
+                        System.IO.File.Delete(absolutePath);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Putem loga eroarea, dar nu oprim ștergerea din baza de date doar pentru că a eșuat ștergerea fișierului
+                Console.WriteLine($"Nu s-a putut șterge fișierul: {ex.Message}");
+            }
+
+            // 6. Șterge postarea din baza de date
+            _context.Posts.Remove(post);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Postarea a fost ștersă cu succes." });
+        }
+        [Authorize]
+        [HttpPut("{id}")]
+        [Consumes("multipart/form-data")] // Permite upload de fisiere
+        public async Task<IActionResult> UpdatePost(int id, [FromForm] EditPostDto dto)
+        {
+            // 1. Identificăm userul
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(currentUserId)) return Unauthorized();
+
+            // 2. Căutăm postarea
+            var post = await _context.Posts.FindAsync(id);
+            if (post == null) return NotFound("Postarea nu a fost găsită.");
+
+            // 3. Verificăm permisiunea (Doar proprietarul poate edita)
+            // Adminul poate șterge, dar de obicei nu edităm conținutul utilizatorilor (etică/legal)
+            if (post.OwnerID != currentUserId)
+            {
+                return StatusCode(403, "Nu ai dreptul să editezi această postare.");
+            }
+
+            // 4. Actualizăm Descrierea (dacă a fost trimisă)
+            if (dto.Description != null)
+            {
+                post.Description = dto.Description;
+            }
+
+            // 5. Actualizăm Poza (DOAR dacă a fost trimisă una nouă)
+            if (dto.Image != null && dto.Image.Length > 0)
+            {
+                // Validare tip fișier
+                if (!dto.Image.ContentType.StartsWith("image/"))
+                {
+                    return BadRequest("Fișierul trebuie să fie o imagine.");
+                }
+
+                try
+                {
+                    // A. ȘTERGEM POZA VECHE de pe disc
+                    if (!string.IsNullOrEmpty(post.Image_path))
+                    {
+                        // Convertim calea relativă (ex: /be_assets/...) în cale absolută
+                        string oldRelativePath = post.Image_path.TrimStart('/', '\\');
+                        string oldAbsolutePath = Path.Combine(_webHostEnvironment.WebRootPath, oldRelativePath);
+
+                        if (System.IO.File.Exists(oldAbsolutePath))
+                        {
+                            System.IO.File.Delete(oldAbsolutePath);
+                        }
+                    }
+
+                    // B. SALVĂM POZA NOUĂ
+                    string uniqueId = GenerateRandomId();
+                    string extension = Path.GetExtension(dto.Image.FileName);
+                    string newFileName = uniqueId + extension;
+
+                    // Folderul unde salvăm
+                    string targetFolder = Path.Combine(_webHostEnvironment.WebRootPath, "be_assets", "img", "posts");
+                    if (!Directory.Exists(targetFolder)) Directory.CreateDirectory(targetFolder);
+
+                    string newPhysicalPath = Path.Combine(targetFolder, newFileName);
+
+                    using (var stream = new FileStream(newPhysicalPath, FileMode.Create))
+                    {
+                        await dto.Image.CopyToAsync(stream);
+                    }
+
+                    // C. Actualizăm calea în baza de date
+                    post.Image_path = $"/be_assets/img/posts/{newFileName}";
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, $"Eroare la actualizarea imaginii: {ex.Message}");
+                }
+            }
+
+            // 6. Salvăm modificările în DB
+            // UpdatedAt = DateTime.UtcNow; // Dacă ai avea un câmp UpdatedAt, aici l-ai seta
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Postarea a fost actualizată.",
+                updatedDescription = post.Description,
+                updatedImagePath = post.Image_path
+            });
+        }
         [HttpGet]
         public async Task<IActionResult> GetRecentPosts(
             [FromQuery] int count = 20,

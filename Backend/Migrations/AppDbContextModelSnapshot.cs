@@ -441,7 +441,7 @@ namespace Backend.Migrations
                     b.HasOne("Backend.Models.Posts", "Post")
                         .WithMany()
                         .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("Backend.Models.ApplicationUser", "User")
@@ -478,7 +478,6 @@ namespace Backend.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
-<<<<<<< HEAD
                         .IsRequired();
 
                     b.Navigation("Group");
@@ -492,8 +491,6 @@ namespace Backend.Migrations
                         .WithMany()
                         .HasForeignKey("GroupId")
                         .OnDelete(DeleteBehavior.Cascade)
-=======
->>>>>>> ee464f276f7423ebf02e65b952658e2d5995c61b
                         .IsRequired();
 
                     b.HasOne("Backend.Models.ApplicationUser", "User")

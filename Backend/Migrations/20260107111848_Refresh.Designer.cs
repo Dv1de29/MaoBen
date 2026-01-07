@@ -12,13 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-<<<<<<<< HEAD:Backend/Migrations/20260107102822_GroupsFeature.Designer.cs
-    [Migration("20260107102822_GroupsFeature")]
-    partial class GroupsFeature
-========
-    [Migration("20251216114853_tryda")]
-    partial class tryda
->>>>>>>> ee464f276f7423ebf02e65b952658e2d5995c61b:Backend/Migrations/20251216114853_tryda.Designer.cs
+    [Migration("20260107111848_Refresh")]
+    partial class Refresh
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -449,7 +444,7 @@ namespace Backend.Migrations
                     b.HasOne("Backend.Models.Posts", "Post")
                         .WithMany()
                         .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("Backend.Models.ApplicationUser", "User")
@@ -486,7 +481,6 @@ namespace Backend.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
-<<<<<<<< HEAD:Backend/Migrations/20260107102822_GroupsFeature.Designer.cs
                         .IsRequired();
 
                     b.Navigation("Group");
@@ -500,8 +494,6 @@ namespace Backend.Migrations
                         .WithMany()
                         .HasForeignKey("GroupId")
                         .OnDelete(DeleteBehavior.Cascade)
-========
->>>>>>>> ee464f276f7423ebf02e65b952658e2d5995c61b:Backend/Migrations/20251216114853_tryda.Designer.cs
                         .IsRequired();
 
                     b.HasOne("Backend.Models.ApplicationUser", "User")
