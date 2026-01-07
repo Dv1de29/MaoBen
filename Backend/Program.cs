@@ -1,4 +1,4 @@
-using Backend.Data;
+﻿using Backend.Data;
 using Backend.Models;
 using Backend.Seed;
 using Microsoft.AspNetCore.Identity; 
@@ -38,7 +38,8 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddControllers();
-
+// Adăugăm HttpClient și Serviciul nostru
+builder.Services.AddHttpClient<Backend.Services.IAiContentService, Backend.Services.GeminiContentService>();
 //Tool pentru a testa api-urile in backend
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

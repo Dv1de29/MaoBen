@@ -1,6 +1,6 @@
 ﻿using Backend.Data;
 using Backend.DTOs.ProfileController;
-using Backend.Models; // Asigură-te că ai namespace-ul corect pentru DTO-uri
+using Backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -9,6 +9,7 @@ using System.Security.Claims;
 using Backend.DTOs;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using Backend.Services; // <--- IMPORT NOU PENTRU AI
 
 namespace Backend.Controllers
 {
@@ -20,12 +21,15 @@ namespace Backend.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly AppDbContext _context;
+        private readonly IAiContentService _aiService; // <--- CAMP NOU
 
-        public ProfileController(UserManager<ApplicationUser> userManager, IWebHostEnvironment webHostEnvironment, AppDbContext context)
+        // Injectam IAiContentService in constructor
+        public ProfileController(UserManager<ApplicationUser> userManager, IWebHostEnvironment webHostEnvironment, AppDbContext context, IAiContentService aiService)
         {
             _userManager = userManager;
             _webHostEnvironment = webHostEnvironment;
             _context = context;
+            _aiService = aiService; // <--- ATRIBUIRE
         }
 
         private string GenerateRandomId()
@@ -39,21 +43,21 @@ namespace Backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetProfile()
         {
-          
+
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var user = await _userManager.FindByIdAsync(userId!);
             if (user == null) return NotFound("User not found.");
 
             var response = new GetProfileUserResponseDTO
             {
-                Name = user.FullName,
+                Name = user.FullName, // Asumi ca ai adaugat FullName in DTO conform codului tau anterior, sau il scoti daca da eroare
                 Username = user.UserName!,
                 Email = user.Email!,
                 ProfilePictureUrl = user.ProfilePictureUrl,
                 Privacy = user.Privacy,
                 Description = user.Description,
-                FollowersCount=user.FollowersCount,
-                FollowingCount=user.FollowingCount
+                FollowersCount = user.FollowersCount,
+                FollowingCount = user.FollowingCount
             };
 
             return Ok(response);
@@ -122,6 +126,14 @@ namespace Backend.Controllers
 
             if (dto.Description != null)
             {
+                // --- INTEGRARE AI PENTRU DESCRIERE ---
+                bool isSafe = await _aiService.IsContentSafeAsync(dto.Description);
+                if (!isSafe)
+                {
+                    return BadRequest("Descrierea profilului conține termeni nepotriviți. Te rugăm să reformulezi.");
+                }
+                // -------------------------------------
+
                 user.Description = dto.Description;
             }
 
@@ -140,7 +152,7 @@ namespace Backend.Controllers
                     username = user.UserName,
                     privacy = user.Privacy,
                     description = user.Description,
-                    profilePictureUrl=user.ProfilePictureUrl,
+                    profilePictureUrl = user.ProfilePictureUrl,
                 });
             }
 
@@ -154,7 +166,7 @@ namespace Backend.Controllers
             var user = await _userManager.FindByIdAsync(userId!);
 
             if (user == null) return NotFound("User not found.");
-            
+
 
             //Stergem manual userul
             var follows = _context.UserFollows
@@ -208,7 +220,7 @@ namespace Backend.Controllers
 
 
 
-            if ( users == null)
+            if (users == null)
             {
                 return Ok(new List<GetAllProfilesDTO>());
             }
@@ -232,7 +244,7 @@ namespace Backend.Controllers
                 return BadRequest("Nu a fost furnizat niciun fișier.");
             }
 
-            if(!image_path.ContentType.StartsWith("image/"))
+            if (!image_path.ContentType.StartsWith("image/"))
             {
                 return BadRequest("File type is wrong and should be: image/");
             }
@@ -267,7 +279,7 @@ namespace Backend.Controllers
             }
         }
 
-        
+
         [NonAction]
         public async Task<IActionResult> GetFollowers()
         {
