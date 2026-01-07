@@ -19,6 +19,9 @@ namespace Backend.Data
         public DbSet<Comment> Comments { get; set; }
 
         public DbSet<PostLike> PostLikes { get; set; }
+        public DbSet<Group> Groups { get; set; }
+        public DbSet<GroupMember> GroupMembers { get; set; }
+        public DbSet<GroupMessage> GroupMessages { get; set; }
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -55,21 +58,15 @@ namespace Backend.Data
                .WithMany()
                .HasForeignKey(pl => pl.UserId)
                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.Entity<Comment>()
-                .HasOne(c => c.User)
-                .WithMany()
-                .HasForeignKey(c => c.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
             // This is where we can enforce specific database rules if we want to be strict.
             // For example, making sure FirstName is never null at the database level.
 
-            //builder.Entity<ApplicationUser>(entity =>
-            //{
-            //    entity.Property(e => e.FirstName).HasMaxLength(100).IsRequired();
-            //    entity.Property(e => e.LastName).HasMaxLength(100).IsRequired();
-            //    entity.Property(e => e.Description).HasMaxLength(500); // Limit description length
-            //});
-        }
+        //builder.Entity<ApplicationUser>(entity =>
+        //{
+        //    entity.Property(e => e.FirstName).HasMaxLength(100).IsRequired();
+        //    entity.Property(e => e.LastName).HasMaxLength(100).IsRequired();
+        //    entity.Property(e => e.Description).HasMaxLength(500); // Limit description length
+        //});
+    }
     }
 }
