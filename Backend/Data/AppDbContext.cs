@@ -19,6 +19,9 @@ namespace Backend.Data
         public DbSet<Comment> Comments { get; set; }
 
         public DbSet<PostLike> PostLikes { get; set; }
+        public DbSet<Group> Groups { get; set; }
+        public DbSet<GroupMember> GroupMembers { get; set; }
+        public DbSet<GroupMessage> GroupMessages { get; set; }
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -55,15 +58,54 @@ namespace Backend.Data
                .WithMany()
                .HasForeignKey(pl => pl.UserId)
                .OnDelete(DeleteBehavior.Restrict);
-            // This is where we can enforce specific database rules if we want to be strict.
-            // For example, making sure FirstName is never null at the database level.
+            builder.Entity<Comment>()
+                .HasOne(c => c.User)
+                .WithMany()
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.Entity<Comment>()
+                 .HasOne(c => c.Post)
+                 .WithMany()
+                 .HasForeignKey(c => c.PostId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-            //builder.Entity<ApplicationUser>(entity =>
-            //{
-            //    entity.Property(e => e.FirstName).HasMaxLength(100).IsRequired();
-            //    entity.Property(e => e.LastName).HasMaxLength(100).IsRequired();
-            //    entity.Property(e => e.Description).HasMaxLength(500); // Limit description length
-            //});
-        }
+            builder.Entity<GroupMember>()
+                .HasKey(gm => new { gm.GroupId, gm.UserId });
+
+            // Relații Membri
+            builder.Entity<GroupMember>()
+                .HasOne(gm => gm.Group)
+                .WithMany()
+                .HasForeignKey(gm => gm.GroupId)
+                .OnDelete(DeleteBehavior.Cascade); // Dacă șterg grupul, șterg membrii
+
+            builder.Entity<GroupMember>()
+                .HasOne(gm => gm.User)
+                .WithMany()
+                .HasForeignKey(gm => gm.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Relații Mesaje
+            builder.Entity<GroupMessage>()
+                .HasOne(m => m.Group)
+                .WithMany()
+                .HasForeignKey(m => m.GroupId)
+                .OnDelete(DeleteBehavior.Cascade); // Dacă șterg grupul, șterg mesajele
+
+            builder.Entity<GroupMessage>()
+               .HasOne(m => m.User)
+               .WithMany()
+               .HasForeignKey(m => m.UserId)
+               .OnDelete(DeleteBehavior.Restrict);
+        // This is where we can enforce specific database rules if we want to be strict.
+        // For example, making sure FirstName is never null at the database level.
+
+        //builder.Entity<ApplicationUser>(entity =>
+        //{
+        //    entity.Property(e => e.FirstName).HasMaxLength(100).IsRequired();
+        //    entity.Property(e => e.LastName).HasMaxLength(100).IsRequired();
+        //    entity.Property(e => e.Description).HasMaxLength(500); // Limit description length
+        //});
+    }
     }
 }
