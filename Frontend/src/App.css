@@ -1,93 +1,296 @@
+/* --- Variables for the Theme (Optional, but helps consistency) --- */
+:root {
+  --nav-bg: #151f2e;
+  --nav-text: #94a3b8;
+  --nav-text-active: #ffffff;
+  --accent-blue: #0ea5e9; /* Light blue/cyan */
+  --accent-glow: rgba(14, 165, 233, 0.4);
+  --active-bg: rgba(5, 13, 26, 0.8);
+  --cta-gradient: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+}
+
+
 body {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  background-color: #000;
+  color: white; /* Ensure body is dark behind transitions */
 }
 
+/* --- 1. The Container --- */
 .app-layout {
-    display: flex;
-    flex-direction: row;
-    width: 100%;
-    min-height: 100vh;
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--active-bg);
 }
 
+
+/* --- 1. Fixed Navbar Container --- */
 .app-nav {
-    width: 15vw;        
-    height: 100vh;   
-    flex-shrink: 0;    
-    
-    background-color: #333; 
-    color: white;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 250px; 
+  z-index: 100;
+  
+  /* Theme Update: Dark Blue/Slate */
+  background-color: var(--nav-bg); 
+  border-right: 1px solid #1e293b; 
+  
+  display: flex;
+  flex-direction: column;
+  padding: 24px 16px;
+  box-sizing: border-box;
+  transition: width 0.3s ease-in-out;
+  font-family: 'Segoe UI', sans-serif; /* Cleaner font */
+}
+
+/* --- 2. Header / Logo --- */
+.nav-header {
     display: flex;
-    flex-direction: column; 
-    padding: 20px;
-    box-sizing: border-box;
-    
-    position: sticky; 
-    top: 0; 
-}
-
-.app-nav ul {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    padding: 0;
-    margin-top: 20px; 
-    height: 100%;    
-}
-
-.app-nav ul > li{
-    min-height: 5vh;
-}
-
-.app-nav span{
-    color: white;
-    font-size: 2rem;
-    /* margin-bottom: 20px; */
-}
-
-.app-nav a {
-    color: white;
-    text-decoration: none;
-    font-size: 1.2rem;
-}
-
-.app-nav .profile-link{
-    margin-top: auto;
-    height: 2vh;
-    width: 100%;
-    align-self: flex-end;
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
     align-items: center;
+    gap: 15px;
+    margin-bottom: 30px;
+    padding-left: 5px;
 }
 
-.app-nav a .profile-link-image{
-    width: 7.5vh;
-    height: 7.5vh;
-    border-radius: 50%;
-    object-fit: cover;
-    display: block; 
-    align-self: flex-end; 
-}
-
-.app-nav .profile-link span{
-    height: 100%;
-    font-size: 15px;
+.logo-icon-bg {
+    width: 40px;
+    height: 40px;
+    background: var(--cta-gradient);
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
+    color: white;
+    font-size: 18px;
+    box-shadow: 0 4px 15px var(--accent-glow);
 }
 
+.app-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
 
-.app-main {
-    flex: 1;      
-    min-width: 0;    
+/* --- 3. Navigation Links List --- */
+.nav-links {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
+/* The Link Item */
+.nav-item {
+  color: var(--nav-text);
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.nav-item svg {
+    width: 20px;
+    text-align: center;
+}
+
+.nav-mini-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+/* Hover State */
+.nav-item:hover {
+  background-color: rgba(255,255,255, 0.05);
+  color: white;
+}
+
+/* Active State (The Blue Block from image) */
+.nav-item.active {
+    background-color: #1e3a52; /* Darker blue background */
+    color: var(--accent-blue);
+    position: relative;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+/* Optional: Add a subtle glow line to the left of active item */
+.nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 60%;
+    width: 3px;
+    background-color: var(--accent-blue);
+    border-radius: 0 4px 4px 0;
+    box-shadow: 0 0 10px var(--accent-blue);
+}
+
+/* --- 4. CTA Button (Create Post) --- */
+.nav-cta-container {
+    margin-top: 30px;
+    width: 100%;
+}
+
+.create-post-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 14px;
+    border-radius: 14px;
     
-    min-height: 100vh;
-    background-color: #000;
+    /* The Gradient from Image */
+    background: var(--cta-gradient);
+    color: white;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 8px 20px -4px var(--accent-glow);
+    transition: transform 0.2s, box-shadow 0.2s;
+    white-space: nowrap;
+}
+
+.create-post-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 25px -4px var(--accent-glow);
+}
+
+/* --- 5. Bottom User Card --- */
+.nav-footer {
+    margin-top: auto; /* Pushes to bottom */
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.user-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: white;
+    flex: 1;
+}
+
+.user-card-img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.1);
+    object-fit: cover;
+}
+
+.user-card-info {
     display: flex;
     flex-direction: column;
 }
+
+.user-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: white;
+}
+
+.user-handle {
+    font-size: 0.8rem;
+    color: var(--nav-text);
+}
+
+.logout-btn {
+    color: #ef4444; /* Red */
+    cursor: pointer;
+    padding: 8px;
+    transition: opacity 0.2s;
+}
+.logout-btn:hover {
+    opacity: 0.8;
+}
+
+/* --- 6. Minimized State (.nav-narrow) Logic --- */
+.app-nav.nav-narrow {
+    width: 80px; /* Slightly wider to accommodate centered icons */
+    padding: 24px 10px;
+}
+
+.app-nav.nav-narrow .hidden-text {
+    display: none;
+    opacity: 0;
+}
+
+/* Center items when narrow */
+.app-nav.nav-narrow .nav-header {
+    justify-content: center;
+    padding-left: 0;
+}
+.app-nav.nav-narrow .nav-item {
+    justify-content: center;
+    padding: 12px 0; /* Remove horizontal padding to center icon */
+}
+
+/* Handle the active line in narrow mode */
+.app-nav.nav-narrow .nav-item.active::before {
+    display: none; /* Hide the side bar indicator in narrow mode */
+}
+
+/* Create Post Button shrinks to circle */
+.app-nav.nav-narrow .create-post-btn {
+    padding: 14px 0;
+    width: 48px;
+    height: 48px;
+    margin: 0 auto;
+    border-radius: 50%;
+}
+
+/* User footer centering */
+.app-nav.nav-narrow .nav-footer {
+    flex-direction: column;
+    gap: 15px;
+    border-top: none;
+}
+
+/* --- 3. Main Content (The fix for "under the navbar") --- */
+.app-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 100vh;
+  /* background-color: #000; */
+  display: flex;
+  flex-direction: column;
+  
+  /* THE FIX: Push content right by the width of the navbar */
+  margin-left: 250px; 
+  transition: margin-left 0.3s ease-in-out; /* Smoothly slide content left/right */
+}
+
+.app-main.no-nav{
+    margin-left: 0;
+}
+
+/* If navbar shrinks, content margin must shrink too */
+.app-main.main-narrow {
+  margin-left: 72px; 
+}
+ 

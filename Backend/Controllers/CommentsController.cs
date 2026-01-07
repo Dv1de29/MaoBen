@@ -87,12 +87,18 @@ public class CommentsController : ControllerBase
         // }
 
         // --- ACTION: Add Comment ---
+
+
+
+        /////// CHANGE THIS TO RETURN THE COMMENT WITH USERNAME AND ALL
+
         var comment = new Comment
         {
             PostId = dto.PostId,
             UserId = currentUserId,
             Content = dto.Content.Trim(),
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            
         };
 
         _context.Comments.Add(comment);
@@ -102,6 +108,15 @@ public class CommentsController : ControllerBase
 
         await _context.SaveChangesAsync();
 
+        var userDetails = await _context.Users
+            .Where(u => u.Id == currentUserId)
+            .Select(u => new
+            {
+                u.UserName,
+                u.ProfilePictureUrl
+            })
+            .FirstOrDefaultAsync();
+
         return CreatedAtAction(nameof(AddComment), new { id = comment.Id }, new
         {
             id = comment.Id,
@@ -109,6 +124,10 @@ public class CommentsController : ControllerBase
             userId = comment.UserId,
             content = comment.Content,
             createdAt = comment.CreatedAt,
+
+            username = userDetails?.UserName,
+            profilePictureUrl = userDetails?.ProfilePictureUrl,
+
             message = "Comentariu adăugat cu succes!"
         });
     }

@@ -1,0 +1,182 @@
+/* --- Search Drawer --- */
+.search-drawer {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    
+    /* FIX: Width = Content (320px) + Navbar Width (80px) */
+    width: 400px; 
+    
+    background-color: #151f2e; /* Match theme solid color so it doesn't look weird transparent */
+    border-right: 1px solid #1e293b;
+    z-index: 90; /* Behind navbar (100) */
+    
+    /* Animation logic */
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Smoother easing */
+    
+    /* FIX: Match the exactly 80px width of .nav-narrow */
+    padding-left: 80px; 
+    
+    box-sizing: border-box;
+    border-top-right-radius: 16px;
+    border-bottom-right-radius: 16px;
+}
+
+.search-drawer.open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+}
+
+/* --- Drawer Internals --- */
+.drawer-header { 
+    padding: 24px;
+    border-bottom: 1px solid #1e293b; /* Match global border color */
+}
+
+.drawer-header h2 { 
+    margin: 0 0 20px 0; 
+    color: white; 
+    font-size: 22px; 
+    font-weight: 700;
+}
+
+.search-input-container {
+    background: #0f172a; /* Darker background for input field */
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    border: 1px solid #1e293b;
+}
+
+.search-input-container input {
+    background: transparent; 
+    border: none; 
+    outline: none; 
+    color: white; 
+    width: 100%; 
+    font-size: 15px;
+    margin-left: 8px; /* Space from icon if you add one */
+}
+.search-input-container input::placeholder {
+    color: #64748b;
+}
+
+.drawer-content {
+    flex: 1;
+    min-height: 30vh;
+    overflow-y: auto; /* Allow scrolling within drawer if list is long */
+}
+
+/* --- Search List Items --- */
+.search-list {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 0;
+}
+
+.search-list .req-item {
+    width: 100%;
+    padding: 10px 24px; /* Horizontal padding matching header */
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    transition: background-color 0.2s;
+    box-sizing: border-box;
+    cursor: pointer;
+    position: relative;
+}
+
+.search-list .req-item:hover {
+    background-color: rgba(255,255,255,0.05);
+}
+
+.req-item img {
+    width: 44px; /* Fixed sizing */
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.req-item .user-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.req-item .user-info span {
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.req-item .user-info small {
+    color: #94a3b8;
+    font-size: 13px;
+}
+
+.no-users {
+    width: 100%;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    font-size: 14px;
+}
+
+
+.req-action-btn {
+    /* Push to the far right */
+    margin-left: auto; 
+    
+    /* Styling */
+    background-color: #334155; /* Slate-700 (Subtle) */
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 2; /* Ensures it sits above the list item click area visually */
+}
+
+.req-action-btn:hover {
+    background-color: #0ea5e9; /* Your Accent Blue */
+    transform: translateY(-1px);
+}
+
+/* Optional: Active/Click effect */
+.req-action-btn:active {
+    transform: translateY(0);
+    opacity: 0.8;
+}
+
+
+.btn-reject {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%; /* Makes it a perfect circle */
+    
+    /* Default State: Faint Red Background with Red Icon */
+    background-color: rgba(239, 68, 68, 0.15); 
+    color: #ef4444; /* Tailwind 'red-500' */
+}
+
+
+.btn-reject:hover {
+    background-color: #ef4444;
+    color: white;
+    transform: scale(1.1); /* Slight pop effect */
+}
+
+/* Active Click State */
+.btn-reject:active {
+    transform: scale(0.95);
+}

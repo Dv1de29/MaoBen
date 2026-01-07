@@ -11,11 +11,14 @@ interface UserContextType {
 
 
 const GUEST_USER: UserProfileType = {
+    name: "",
     username: "",
     description: "",
     email: "",
     profilePictureUrl: "/assets/img/no_user.jpg", // Default image always ready
     privacy: false,
+    followingCount: 0,
+    followersCount: 0,
     posts: [],
 };
 

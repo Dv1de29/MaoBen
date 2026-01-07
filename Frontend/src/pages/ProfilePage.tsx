@@ -7,8 +7,8 @@ import type { PostType, PostApiType, UserProfileType } from '../assets/types';
 
 
 
-import { useNavigate, useParams } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
 import { useUser } from '../context/UserContext';
 
 
@@ -23,9 +23,24 @@ const ProfilePage = () => {
     const [displayUser, setDisplayUser] = useState<UserProfileType | null>(
         isMyProfile ? contextUser : null
     );
+    
+    
     const [posts, setPosts] = useState<PostType[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     
+    const [doIFollow, setDoIFollow] = useState<"Accepted" | "None" | "Pending">("None");
+
+    console.log(`User privacy: ${displayUser?.privacy === true} && !isMyProfile: ${!isMyProfile} && doIFollow: ${doIFollow}`)
+    
+    const userPrivacy = (displayUser?.privacy === true) &&  
+                        !isMyProfile &&               
+                        doIFollow !== "Accepted";
+
+    console.log(userPrivacy)
+
+
+
+    //// For the number of followers to change when i FOllow and Unfollow, i should call setDsiplayUser and change it's followingCount
 
     //fetching my User + Posts
     useEffect(() => {
@@ -72,7 +87,7 @@ const ProfilePage = () => {
                         }
                     });
                 } else {
-                    console.log(usernamePath)
+                    
                     postsRes = await fetch(`/api/Posts/ByOwner/${usernamePath}`, {
                         headers: { 
                             'Authorization': `Bearer ${token}`,
@@ -83,7 +98,7 @@ const ProfilePage = () => {
 
                 if (postsRes.ok) {
                     const data = await postsRes.json();
-                    console.log(data)
+                   
                     
                     const transformedPosts = data.map((postData: PostApiType) => ({
                         id: postData.id,
@@ -105,11 +120,84 @@ const ProfilePage = () => {
 
         loadData();
 
-    }, [usernamePath, contextUser, isMyProfile])
+    }, [usernamePath, contextUser, isMyProfile, doIFollow])
+    ///maybe erase doIFollow if i dont want displayUser to change the followingCount
 
-    const handleFollow = () => {
 
-    }
+    /// see if i follow him
+    useEffect(() => {
+        if ( isMyProfile ) return;
+
+        console.log("ENTERED USEEFFECT SETDOIFOLLOW AND isMyProfile is false")
+
+        const setFollow = async () => {
+            const token = sessionStorage.getItem("userToken")
+    
+            try{
+                const res = await fetch(`/api/Follow/status/${usernamePath}`, {
+                    method: "GET",
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                })
+
+                if ( !res.ok){
+                    throw new Error(`Response error: ${res.status}, ${res.statusText}`)
+                }
+
+                const data = await res.json();
+
+                setDoIFollow(data.status);
+    
+            } catch (e){
+                console.error("Error at follow check: ", e)
+            }
+        }
+
+        setFollow()
+
+    }, [isMyProfile, usernamePath])
+
+
+
+    const handleFollow = useCallback(() => {
+        const follow = async () => {
+
+            if ( isMyProfile ) return;
+
+            const token = sessionStorage.getItem("userToken");
+
+            try{
+                const res = await fetch(`/api/Follow/${doIFollow !== "None" ? "unfollow/" : ""}${usernamePath}`, {
+                    method: `${doIFollow !== "None" ? "DELETE" : "POST"}`,
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                console.log(doIFollow)
+                console.log(`URL: /api/Follow/${doIFollow !== "None" ? "unfollow/" : ""}${usernamePath}`)
+                console.log(`METHOD: ${doIFollow !== "None" ? "DELETE" : "POST"}`)
+
+                if ( !res.ok ){
+                    throw new Error(`${res.status}, ${res.statusText}`)
+                }
+
+                setDoIFollow(doIFollow === "None" ? `${!displayUser?.privacy ? "Accepted" : "Pending"}` : "None")
+
+                console.log("Changed doIFollow to ", doIFollow)
+
+            } catch(e){
+                console.error("Follow error: ", e);
+            }
+            finally{
+                console.log("");
+            }
+        }
+
+        follow();
+    }, [doIFollow, usernamePath, displayUser])
 
     if (!displayUser && loading) return <div className="loading" style={{color: "white"}}>Loading...</div>;
 
@@ -122,7 +210,7 @@ const ProfilePage = () => {
             <button className="icon-button"><FontAwesomeIcon icon={faArrowLeft} onClick={() => {navigate(-1)}}/></button>
             <h1>{displayUser.username}</h1>
             {isMyProfile && (
-                <button className="icon-button" onClick={() => {navigate(`edit`)}}><FontAwesomeIcon icon={faCog} /></button>
+                <button className="icon-button" onClick={() => {navigate(`/profile/edit`)}}><FontAwesomeIcon icon={faCog} /></button>
             )}
         </div>
 
@@ -137,16 +225,16 @@ const ProfilePage = () => {
                 <span className="count">{posts.length}</span> postări
                 </div>
                 <div className="stat">
-                <span className="count">{900}</span> de urmăritori
+                <span className="count">{displayUser.followersCount}</span> de urmăritori
                 </div>
                 <div className="stat">
-                <span className="count">{200}</span> de urmăriri
+                <span className="count">{displayUser.followingCount}</span> de urmăriri
                 </div>
             </div>
             <div className="bio">
                 <h2>
                     {/* {displayUser.name} */}
-                    {"David"}
+                    {displayUser.name}
                 </h2>
                 <p><FontAwesomeIcon icon={faGlobe} /> {displayUser.description}</p>
                 <p>{`@${displayUser.username}`}</p>
@@ -156,13 +244,17 @@ const ProfilePage = () => {
 
         {isMyProfile && (
             <div className="actions">
-                <button className="primary-button" onClick={() => {navigate(`edit`)}}>Edit profile</button>
-                <button className="secondary-button">See archive</button>
+                <button className="primary-button" onClick={() => {navigate(`/profile/edit`)}}>Edit profile</button>
+                {/* <button className="secondary-button">See archive</button> */}
             </div>
         )}
         {!isMyProfile && (
             <div className="actions">
-                <button className="primary-button" onClick={handleFollow}>Follow</button>
+                <button className="primary-button" onClick={handleFollow}>
+                {
+                    doIFollow !== "None" ? (doIFollow === "Accepted" ? "Unfollow" : doIFollow) : "Follow"
+                }
+                </button>
             </div>
         )}
 
@@ -172,17 +264,34 @@ const ProfilePage = () => {
             <button className="tab"><FontAwesomeIcon icon={faBookmark} /></button>
             <button className="tab"><FontAwesomeIcon icon={faUserTag} /></button>
         </div> */}
-
-            {posts.length === 0 && (
-                <div className="no-posts-container">
-                    <span>This user has no posts</span>
-                </div>
-            )}
-        <div className="photo-grid">
-            {posts.map(post => (
-                <div className="grid-item" key={post.id}><img src={post.img_path} alt="Post 1" /></div>
-            ))}
-        </div>
+        {userPrivacy === true && (
+            <div className="no-posts-container">
+                <span>This user is private</span>
+            </div>
+        )}
+        {userPrivacy === false && posts.length === 0 && (
+            <div className="no-posts-container">
+                <span>This user has no posts</span>
+            </div>
+        )}
+        
+        {userPrivacy === false && (
+            <div className="photo-grid">
+                {posts.map(post => (
+                    <Link 
+                        to={`/p/${post.id}`} 
+                        state={{ background: {
+                            pathname: location.pathname,
+                            search: location.search,
+                            hash: location.hash,
+                        } }} 
+                        key={post.id}
+                    >
+                        <div className="grid-item" ><img src={post.img_path} alt="Post 1" /></div>
+                    </Link>
+                ))}
+            </div>
+        )}
         </div>
     );
 };

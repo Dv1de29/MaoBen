@@ -46,6 +46,7 @@ namespace Backend.Controllers
 
             var response = new GetProfileUserResponseDTO
             {
+                Name = user.FullName,
                 Username = user.UserName!,
                 Email = user.Email!,
                 ProfilePictureUrl = user.ProfilePictureUrl,
@@ -78,11 +79,14 @@ namespace Backend.Controllers
 
             var response = new GetProfileUserResponseDTO
             {
+                Name = user.FullName,
                 Username = user.UserName!,
                 Email = user.Email!,
                 ProfilePictureUrl = user.ProfilePictureUrl,
                 Privacy = user.Privacy,
-                Description = user.Description
+                Description = user.Description,
+                FollowersCount = user.FollowersCount,
+                FollowingCount = user.FollowingCount
             };
 
             return Ok(response);
@@ -169,6 +173,50 @@ namespace Backend.Controllers
         }
 
 
+        [HttpGet("allUsers/{searchValue?}")]
+        public async Task<IActionResult> GetAllUsers(string searchValue)
+        {
+            List<GetAllProfilesDTO> users;
+
+            if (string.IsNullOrEmpty(searchValue))
+            {
+                users = await _userManager.Users
+                                    .AsNoTracking()
+                                    .Select(u => new GetAllProfilesDTO
+                                    {
+                                        name = u.FullName,
+                                        username = u.UserName,
+                                        ProfilePictureUrl = u.ProfilePictureUrl,
+                                    })
+                                    .Take(30)
+                                    .ToListAsync();
+            }
+            else
+            {
+                users = await _userManager.Users
+                                    .AsNoTracking()
+                                    .Where(u => u.UserName.Contains(searchValue) || (u.FirstName + " " + u.LastName).Contains(searchValue))
+                                    .Select(u => new GetAllProfilesDTO
+                                    {
+                                        name = u.FullName,
+                                        username = u.UserName,
+                                        ProfilePictureUrl = u.ProfilePictureUrl,
+                                    })
+                                    .Take(30)
+                                    .ToListAsync();
+            }
+
+
+
+            if ( users == null)
+            {
+                return Ok(new List<GetAllProfilesDTO>());
+            }
+
+            return Ok(users);
+        }
+
+
         [HttpPost("upload_image")]
         [Consumes("multipart/form-data")]
         [ApiExplorerSettings(IgnoreApi = true)]
@@ -218,6 +266,7 @@ namespace Backend.Controllers
                     $"Eroare la salvarea fișierului: {ex.Message}");
             }
         }
+
         
         [NonAction]
         public async Task<IActionResult> GetFollowers()

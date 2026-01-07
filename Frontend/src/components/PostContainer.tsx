@@ -8,12 +8,16 @@ interface PostContainerProsp{
 }
 
 
-
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// REMEMBER THAT I MUST ADD THE USER INFO FOR EACH POST tO HAVE it UPPPP
-
-
+const SkeletonPost = () => (
+    <div className="skeleton-wrapper">
+        <div className="skeleton-header">
+            <div className="skeleton-avatar shim"></div>
+            <div className="skeleton-text shim"></div>
+        </div>
+        <div className="skeleton-image shim"></div>
+        <div className="skeleton-footer shim"></div>
+    </div>
+);
 
 
 function PostContainer(){
@@ -23,6 +27,7 @@ function PostContainer(){
     const ITEMS_PER_PAGE = 7;
 
     const [loading, setLoading] = useState<boolean>(false);
+    const [initialLoading, setInitialLoading] = useState<boolean>(true);
     const [hasMore, setHasMore] = useState<boolean>(true);
 
     const observerTargetRef = useRef<HTMLDivElement>(null);
@@ -34,8 +39,14 @@ function PostContainer(){
 
         const skipValue = (page - 1) * ITEMS_PER_PAGE;
 
+        const token = sessionStorage.getItem("userToken");
+
         try{
-            const res = await fetch(`/api/posts/?count=${ITEMS_PER_PAGE}&skip=${skipValue}`)
+            const res = await fetch(`/api/posts/?count=${ITEMS_PER_PAGE}&skip=${skipValue}`, {
+                headers:{
+                    'Authorization': `Bearer ${token}`
+                }
+            })
     
             if ( !res.ok ){
                 if ( res.status === 204 || res.status === 404 || res.status === 400){
@@ -52,14 +63,19 @@ function PostContainer(){
                 setHasMore(false);
             }
 
+            console.log(data)
             const transformedPosts = data.map((postData: PostApiType) => {
                 return{
                     id: postData.id,
                     owner: postData.owner,
                     img_path: postData.image_path,
+                    description: postData.description,
                     nr_likes: postData.nr_likes,
                     nr_comm: postData.nr_comms,
-                    has_liked: false,
+                    has_liked: postData.has_liked,
+                    created: postData.created,
+                    username: postData.username,
+                    user_image_path: postData.user_image_path ? postData.user_image_path : "/assets/img/no_user.png",
                 }
             });
 
@@ -70,6 +86,7 @@ function PostContainer(){
             console.error("Error at loading my posts: ", e)
         } finally{
             setLoading(false);
+            setInitialLoading(false);
         }
         
 
@@ -96,8 +113,8 @@ function PostContainer(){
 
         const observer = new IntersectionObserver(ObserverCall, {
             root: null,
-            rootMargin: '0px',
-            threshold: 1.0,
+            rootMargin: '200px',
+            threshold: 0.1,
         });
 
         const currentTarget = observerTargetRef.current;
@@ -112,39 +129,73 @@ function PostContainer(){
     }, [loading, hasMore, fetchMyPosts, posts.length]);
 
 
-    const handleLike = useCallback((id: number) => {
+    const handleLike = useCallback((id: number, likeState: boolean) => {
+        const token = sessionStorage.getItem("userToken")
+
         setPosts(prev => prev.map(p => {
             if ( p.id === id ){
+                let newCount = p.nr_likes;
+                
+                // Safety check: Don't double count if state is already consistent
+                if (likeState && !p.has_liked) {
+                    newCount++;
+                } else if (!likeState && p.has_liked) {
+                    newCount--;
+                }
                 return{
                     ...p,
-                    has_liked: true,
+                    has_liked: likeState,
+                    nr_likes: newCount < 0 ? 0 : newCount,
                 }
             }
             return p;
         }))
+
+        fetch(`/api/Likes/toggle/${id}?likeState=${likeState}`, {
+            method: "POST",
+            keepalive: true, // Critical for refresh
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
+        }).catch(e => {
+            console.error("HandleLike Error: ", e);
+            // Optional: Revert UI state here if needed
+        });
+
     }, [])
 
     return(
-        <section className="card-container">
-            {posts.map(post => (
-                <div className="card_wrapper" key={post.id}>
-                    <Post
-                        key={post.id}
-                        post={post}
-                        onToggleLike={handleLike}
-                    />
+        <div className="feed-layout">
+
+            {/* Posts Feed */}
+            <section className="feed-stream">
+                {posts.map(post => (
+                    <article className="post-wrapper" key={post.id}>
+                        <Post 
+                            post={post} 
+                            onToggleLike={handleLike} 
+                        />
+                    </article>
+                ))}
+
+                {/* Loading State */}
+                <div ref={observerTargetRef} className="loading-trigger">
+                    {(initialLoading || loading) && hasMore && (
+                        <>
+                            <SkeletonPost />
+                            <SkeletonPost />
+                        </>
+                    )}
                 </div>
-            ))}
-            {hasMore ? (
-                <div className="observer" ref={observerTargetRef} style={{height: 20, textAlign: 'center'}}>
-                    {loading ? 'Loading...' : 'Scroll down'}
-                </div>
-            ) : (
-                <div style={{ textAlign: 'center', padding: '10px', color: '#888' }}>
-                    --- End of Posts ---
-                </div>
-            )}
-        </section>
+
+                {!hasMore && posts.length > 0 && (
+                    <div className="end-of-feed">
+                        <div className="check-icon">✓</div>
+                        <p>You're all caught up</p>
+                    </div>
+                )}
+            </section>
+        </div>
     )
 }
 

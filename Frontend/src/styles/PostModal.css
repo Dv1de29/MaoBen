@@ -1,0 +1,81 @@
+/* PostModal.css */
+
+.modal-overlay {
+    position: fixed;
+    top: 0; 
+    left: 0; 
+    right: 0; 
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85); /* Slightly darker for better focus */
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(5px); /* Optional: Blur background */
+}
+
+.modal-content {
+    /* Theme Match */
+    background: #151f2e; 
+    color: white;
+    
+    /* Size Constraints */
+    width: 90%; /* Wider on mobile */
+    max-width: 600px;
+    
+    /* SCROLLING LOGIC */
+    max-height: 90vh; /* Never exceed 90% of screen height */
+    overflow-y: auto; /* Enable vertical scrolling */
+    
+    /* Layout */
+    border-radius: 16px;
+    padding: 0; /* Remove padding here, let the Post component handle spacing */
+    position: relative;
+    border: 1px solid #1e293b;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.modal-content::-webkit-scrollbar {
+    display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.modal-content {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Sticky Close Button */
+.close-btn {
+    position: sticky; /* Stays visible when scrolling */
+    top: 10px;
+    float: right; /* Pushes to right */
+    margin-right: 10px;
+    z-index: 10; /* Stays on top of post content */
+    
+    /* Visuals */
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+
+.close-btn:hover {
+    background: #ef4444; /* Red on hover */
+}
+
+/* Remove the Post's default margin when inside a modal */
+.modal-content .post-container {
+    margin-bottom: 0;
+    border: none;
+    background: transparent; /* Seamless blend */
+}
