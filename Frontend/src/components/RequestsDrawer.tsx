@@ -100,7 +100,7 @@ function ReqDrawer({ isOpen, setIsOpen }: ReqDrawerProps) {
     return (
         <div className={`search-drawer ${isOpen ? 'open' : ''}`}>
             <div className="drawer-header">
-                <h2>Search</h2>
+                <h2>Your requests:</h2>
             </div>
 
             <div className="drawer-content">
