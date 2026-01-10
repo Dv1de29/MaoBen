@@ -103,60 +103,77 @@ namespace Backend.Controllers
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var user = await _userManager.FindByIdAsync(userId!);
 
+            // Pasul 1: Luăm userul inițial
+            var user = await _userManager.FindByIdAsync(userId!);
             if (user == null) return NotFound("User not found.");
 
+            // --- A. ACTUALIZARE USERNAME (O facem separat și salvăm) ---
             if (!string.IsNullOrWhiteSpace(dto.Username) && dto.Username != user.UserName)
             {
                 var existingUser = await _userManager.FindByNameAsync(dto.Username);
-                if (existingUser != null)
+                // Verificăm să nu fie luat de altcineva
+                if (existingUser != null && existingUser.Id != user.Id)
                 {
                     return BadRequest(new { message = $"Numele de utilizator '{dto.Username}' este deja folosit." });
                 }
 
+                // Această funcție face update, normalizează numele și salvează în DB automat
                 var setUserNameResult = await _userManager.SetUserNameAsync(user, dto.Username);
-                if (!setUserNameResult.Succeeded) return BadRequest(setUserNameResult.Errors);
+
+                if (!setUserNameResult.Succeeded)
+                {
+                    return BadRequest(setUserNameResult.Errors);
+                }
+
+                user = await _userManager.FindByIdAsync(userId!);
             }
 
-            if (dto.Privacy.HasValue)
+            // --- B. ACTUALIZARE RESTUL DATELOR ---
+
+            bool hasChanges = false; // Optimizare: salvăm doar dacă am schimbat ceva aici
+
+            if (dto.Privacy.HasValue && user.Privacy != dto.Privacy.Value)
             {
                 user.Privacy = dto.Privacy.Value;
+                hasChanges = true;
             }
 
-            if (dto.Description != null)
+            if (dto.Description != null && user.Description != dto.Description)
             {
-                // --- INTEGRARE AI PENTRU DESCRIERE ---
+                // --- FILTRARE AI ---
                 bool isSafe = await _aiService.IsContentSafeAsync(dto.Description);
                 if (!isSafe)
                 {
                     return BadRequest("Descrierea profilului conține termeni nepotriviți. Te rugăm să reformulezi.");
                 }
-                // -------------------------------------
-
+                // -------------------
                 user.Description = dto.Description;
+                hasChanges = true;
             }
 
-            if (dto.ProfilePictureUrl != null)
+            if (dto.ProfilePictureUrl != null && user.ProfilePictureUrl != dto.ProfilePictureUrl)
             {
                 user.ProfilePictureUrl = dto.ProfilePictureUrl;
+                hasChanges = true;
             }
 
-            var result = await _userManager.UpdateAsync(user);
-
-            if (result.Succeeded)
+            // --- C. SALVARE FINALĂ (Doar dacă e nevoie) ---
+            if (hasChanges)
             {
-                return Ok(new
-                {
-                    message = "Profil actualizat cu succes!",
-                    username = user.UserName,
-                    privacy = user.Privacy,
-                    description = user.Description,
-                    profilePictureUrl = user.ProfilePictureUrl,
-                });
+                var result = await _userManager.UpdateAsync(user);
+                if (!result.Succeeded) return BadRequest(result.Errors);
             }
 
-            return BadRequest(result.Errors);
+            // Returnăm datele actualizate
+            return Ok(new
+            {
+                message = "Profil actualizat cu succes!",
+                username = user.UserName,
+                privacy = user.Privacy,
+                description = user.Description,
+                profilePictureUrl = user.ProfilePictureUrl,
+            });
         }
 
         [HttpDelete]

@@ -18,6 +18,7 @@ namespace Backend.Data
         public DbSet<Group> Groups { get; set; }
         public DbSet<GroupMember> GroupMembers { get; set; }
         public DbSet<GroupMessage> GroupMessages { get; set; }
+        public DbSet<DirectMessage> DirectMessages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -96,6 +97,24 @@ namespace Backend.Data
                .WithMany()
                .HasForeignKey(m => m.UserId)
                .OnDelete(DeleteBehavior.Restrict);
+            builder.Entity<DirectMessage>()
+                .HasOne(dm => dm.Sender)
+                .WithMany()
+                .HasForeignKey(dm => dm.SenderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<DirectMessage>()
+                .HasOne(dm => dm.Receiver)
+                .WithMany()
+                .HasForeignKey(dm => dm.ReceiverId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Index pentru căutare rapidă de conversații
+            builder.Entity<DirectMessage>()
+                .HasIndex(dm => new { dm.SenderId, dm.ReceiverId });
+
+            builder.Entity<DirectMessage>()
+                .HasIndex(dm => new { dm.ReceiverId, dm.SenderId });
         }
     }
 }
