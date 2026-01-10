@@ -1,13 +1,13 @@
 ﻿using Backend.Data;
 using Backend.DTOs;
-using Backend.DTOs.GroupController; // Asigură-te că namespace-ul DTO-urilor e corect
+using Backend.DTOs.GroupController; 
 using Backend.Models;
-using Backend.Services; // Import pentru AI Service
-using Backend.Hubs;     // <--- IMPORT PENTRU HUB
+using Backend.Services; 
+using Backend.Hubs;     
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR; // <--- IMPORT PENTRU SIGNALR
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
@@ -21,7 +21,7 @@ namespace Backend.Controllers
         private readonly AppDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IAiContentService _aiService;
-        private readonly IHubContext<ChatHub> _hubContext; // <--- CAMP NOU PENTRU SIGNALR
+        private readonly IHubContext<ChatHub> _hubContext;
 
         // Injectăm IHubContext în constructor
         public GroupsController(

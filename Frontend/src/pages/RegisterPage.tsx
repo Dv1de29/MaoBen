@@ -207,7 +207,7 @@ function RegisterPage() {
                 </div>
             </div>
             <footer className="app-footer">
-                <p>© 2025 si Ionut inca nu stie fotbal</p>
+                <p>© 2026 si Ionut inca nu stie fotbal</p>
             </footer>
         </div>
     );

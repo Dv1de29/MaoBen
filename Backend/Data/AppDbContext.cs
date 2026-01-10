@@ -101,13 +101,13 @@ namespace Backend.Data
                 .HasOne(dm => dm.Sender)
                 .WithMany()
                 .HasForeignKey(dm => dm.SenderId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<DirectMessage>()
                 .HasOne(dm => dm.Receiver)
                 .WithMany()
                 .HasForeignKey(dm => dm.ReceiverId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.NoAction);
 
             // Index pentru căutare rapidă de conversații
             builder.Entity<DirectMessage>()

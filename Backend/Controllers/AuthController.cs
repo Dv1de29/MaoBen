@@ -25,17 +25,21 @@ namespace Backend.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterUserDTO dto)
         {
+            // Validare format DTO
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
+            //Gasire email existent pentru ca emailul e unic pentru utilizator
             var existingUser = await _userManager.FindByEmailAsync(dto.Email);
             if (existingUser != null) return BadRequest(new { message = "Email is already in use." });
 
-            if(dto.Username.Contains("@")) return BadRequest(new { message = "Username cannot contain '@' character." });
+            // Validare username
+            if (dto.Username.Contains("@")) return BadRequest(new { message = "Username cannot contain '@' character." });
 
+            //Gasire username existent
             var existingUsername = await _userManager.FindByNameAsync(dto.Username);
             if (existingUsername != null) return BadRequest(new { message = "Username is already taken." });
 
-
+            // Creare utilizator nou
             var user = new ApplicationUser
             {
                 UserName = dto.Username,
@@ -48,13 +52,10 @@ namespace Backend.Controllers
                 var result = await _userManager.CreateAsync(user, dto.Password);
                 if (!result.Succeeded) return BadRequest(result.Errors);
 
-                
                 await _userManager.AddToRoleAsync(user, "User");
 
-             
                 var token = await GenerateJwtToken(user);
 
-                
                 return Ok(new AuthResponseDTO
                 {
                     Token = token,
@@ -63,7 +64,7 @@ namespace Backend.Controllers
                     Role = "User" 
                 });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return StatusCode(500, new { message = "An internal server error occurred. "});
             }
@@ -72,7 +73,10 @@ namespace Backend.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginUserDTO dto)
         {
+            // Validare format DTO
             if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            // Gasire utilizator dupa email sau username
             ApplicationUser? user=null;
             if (dto.UsernameOrEmail.Contains("@"))
             { 
@@ -89,13 +93,12 @@ namespace Backend.Controllers
             }
             if (!await _userManager.CheckPasswordAsync(user, dto.Password))
             {
-                return Unauthorized(new { message = "invalid password" });
+                return Unauthorized(new { message = "Invalid password" });
             }
 
             var token = await GenerateJwtToken(user);
 
             var roles = await _userManager.GetRolesAsync(user);
-
 
             return Ok(new AuthResponseDTO
             {
@@ -109,6 +112,7 @@ namespace Backend.Controllers
         [NonAction]
         private async Task<string> GenerateJwtToken(ApplicationUser user)
         {
+            //Configurare cheie de securitate
             var jwtSettings = _configuration.GetSection("Jwt");
             var key = Encoding.ASCII.GetBytes(jwtSettings["Key"]!);
 

@@ -7,8 +7,7 @@ using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using Backend.Hubs; // <--- 1. IMPORT NOU PENTRU HUB
-
+using Backend.Hubs;
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -20,7 +19,6 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     // Setari de verificare a parolei pentru utilizatorii creati
     options.Password.RequireDigit = true;
-    options.Password.RequireLowercase = true;
     options.Password.RequireNonAlphanumeric = true;
     options.Password.RequireUppercase = true;
     options.Password.RequiredLength = 6;
