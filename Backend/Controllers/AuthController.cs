@@ -33,7 +33,7 @@ namespace Backend.Controllers
             if (existingUser != null) return BadRequest(new { message = "Email is already in use." });
 
             // Validare username
-            if (dto.Username.Contains("@")) return BadRequest(new { message = "Username cannot contain '@' character." });
+            if (dto.Username.Contains('@')) return BadRequest(new { message = "Username cannot contain '@' character." });
 
             //Gasire username existent
             var existingUsername = await _userManager.FindByNameAsync(dto.Username);
@@ -77,8 +77,8 @@ namespace Backend.Controllers
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             // Gasire utilizator dupa email sau username
-            ApplicationUser? user=null;
-            if (dto.UsernameOrEmail.Contains("@"))
+            ApplicationUser? user;
+            if (dto.UsernameOrEmail.Contains('@'))
             { 
                 user = await _userManager.FindByEmailAsync(dto.UsernameOrEmail);
             }

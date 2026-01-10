@@ -2,14 +2,11 @@
 using Backend.DTOs.ProfileController;
 using Backend.Models;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using Backend.DTOs;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
-using Backend.Services; // <--- IMPORT NOU PENTRU AI
+using Backend.Services;
 
 namespace Backend.Controllers
 {
@@ -21,21 +18,20 @@ namespace Backend.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly AppDbContext _context;
-        private readonly IAiContentService _aiService; // <--- CAMP NOU
+        private readonly IAiContentService _aiService;
 
-        // Injectam IAiContentService in constructor
         public ProfileController(UserManager<ApplicationUser> userManager, IWebHostEnvironment webHostEnvironment, AppDbContext context, IAiContentService aiService)
         {
             _userManager = userManager;
             _webHostEnvironment = webHostEnvironment;
             _context = context;
-            _aiService = aiService; // <--- ATRIBUIRE
+            _aiService = aiService; 
         }
 
         private string GenerateRandomId()
         {
             Random random = new Random();
-            long randomNumber = random.Next(1000000000) + 1000000000L; // Asigură 10 cifre
+            long randomNumber = random.Next(1000000000) + 1000000000L; 
             return randomNumber.ToString();
         }
 
