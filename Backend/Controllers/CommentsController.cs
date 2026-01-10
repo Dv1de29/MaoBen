@@ -145,6 +145,8 @@ namespace Backend.Controllers
 
             return Ok(comments);
         }
+        
+        
         [Authorize]
         [HttpDelete("{commentId}")]
         public async Task<IActionResult> DeleteComment(int commentId)

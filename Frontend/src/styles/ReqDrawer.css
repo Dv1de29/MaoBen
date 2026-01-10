@@ -88,6 +88,9 @@
     box-sizing: border-box;
     cursor: pointer;
     position: relative;
+    justify-content: space-between; /* Pushes content apart */
+    align-items: center; /* Center vertically */
+    padding: 12px 24px;
 }
 
 .search-list .req-item:hover {
@@ -179,4 +182,89 @@
 /* Active Click State */
 .btn-reject:active {
     transform: scale(0.95);
+}
+
+
+
+
+
+
+
+/* ... existing drawer styles ... */
+
+/* --- Item Layout Tweaks --- */
+.search-list .req-item {
+    /* ... existing ... */
+    justify-content: space-between; /* Pushes content apart */
+    align-items: center; /* Center vertically */
+    padding: 12px 24px;
+}
+
+/* User Info takes available space but doesn't squash buttons */
+.req-item .user-info {
+    flex: 1; 
+    margin-right: 12px;
+    min-width: 0; /* Allows text truncation if needed */
+}
+
+/* --- Action Buttons Container --- */
+.req-actions {
+    display: flex;
+    gap: 8px; /* Space between Confirm and Delete */
+    align-items: center;
+}
+
+/* --- Base Button Style --- */
+.action-btn {
+    padding: 6px 14px;
+    border-radius: 50%;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap; /* Prevent text wrapping */
+}
+
+/* --- Confirm (Accept) Button --- */
+/* Modern: Solid Accent Color */
+.btn-confirm {
+    background-color: #0ea5e9; /* Sky-500 (Matches your theme accent) */
+    color: white;
+}
+
+.btn-confirm:hover {
+    background-color: #0284c7; /* Darker Sky-600 */
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3); /* Subtle Glow */
+}
+
+.btn-confirm:active {
+    transform: translateY(0);
+}
+
+/* --- Delete (Reject) Button --- */
+/* Modern: Subtle Gray / Ghost style */
+.btn-delete {
+    background-color: #334155; /* Slate-700 */
+    color: #cbd5e1; /* Slate-300 text */
+}
+
+.btn-delete:hover {
+    background-color: #ef4444; /* Switch to Red on Hover */
+    color: white;
+}
+
+.btn-delete:active {
+    opacity: 0.8;
+}
+
+/* --- Mobile Responsiveness (Optional) --- */
+/* If the drawer is narrow, maybe stack them or shrink padding */
+@media (max-width: 400px) {
+    .action-btn {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
 }

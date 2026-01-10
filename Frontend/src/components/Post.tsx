@@ -77,7 +77,7 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
         const token = sessionStorage.getItem("userToken");
         try {
             const res = await fetch(`/api/Comments/${post_id}`, { headers: { 'Authorization': `Bearer ${token}` } });
-            if (!res.ok) throw new Error(`Response Error`);
+            if (!res.ok) throw new Error(`Response Error: ${res.status}, ${res.statusText}`);
             const data: CommentApiType[] = await res.json();
             setDisplayComments(data);
         } catch (e) { console.error(e); }

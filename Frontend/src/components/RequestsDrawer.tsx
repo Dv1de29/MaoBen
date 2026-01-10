@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import '../styles/ReqDrawer.css'
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircleXmark, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faCheck, faCircleXmark, faXmark } from '@fortawesome/free-solid-svg-icons';
 import type { UsersSearchApiType } from '../assets/types';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -47,6 +47,8 @@ function ReqDrawer({ isOpen, setIsOpen }: ReqDrawerProps) {
         }
 
         fetchReq();
+
+        
     }, []);
 
     const handleAccept = (username: string) => {
@@ -71,6 +73,10 @@ function ReqDrawer({ isOpen, setIsOpen }: ReqDrawerProps) {
         }
 
         fetchAcceptFollow();
+
+        setDisplayUsers(prev => {
+            return prev.filter(u => u.username !== username)
+        })
     }
 
     const handleReject = (username: string) => {
@@ -95,6 +101,10 @@ function ReqDrawer({ isOpen, setIsOpen }: ReqDrawerProps) {
         }
 
         fetchRejectFollow();
+
+        setDisplayUsers(prev => {
+            return prev.filter(u => u.username !== username)
+        })
     }
 
     return (
@@ -124,24 +134,30 @@ function ReqDrawer({ isOpen, setIsOpen }: ReqDrawerProps) {
                                     <span className="username">{user.username}</span>
                                     <span className="subtext">{user.name}</span>
                                 </div>
-                                <button 
-                                    className="req-action-btn"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleAccept(user.username);
-                                    }}
-                                >
-                                    Accept
-                                </button>
-                                <button 
-                                    className="action-btn btn-reject"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleReject(user.username);
-                                    }}
-                                >
-                                    <FontAwesomeIcon icon={faXmark} />
-                                </button>
+
+
+                                <div className="req-actions">
+                                    <button 
+                                        className="action-btn btn-confirm"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleAccept(user.username);
+                                        }}
+                                    >
+                                        {/* Confirm */}
+                                        <FontAwesomeIcon icon={faCheck}/>
+                                    </button>
+                                    <button 
+                                        className="action-btn btn-delete"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleReject(user.username);
+                                        }}
+                                    >
+                                        {/* Delete */}
+                                        <FontAwesomeIcon icon={faXmark}/>
+                                    </button>
+                                </div>
                              </li>
                         ))}
                     </ul>
