@@ -20,6 +20,8 @@ const ProfilePage = () => {
 
     const isMyProfile = !usernamePath || usernamePath === contextUser.username;
 
+    const isGuest = (sessionStorage.getItem("userRole") === "Guest");
+
     const [displayUser, setDisplayUser] = useState<UserProfileType | null>(
         isMyProfile ? contextUser : null
     );
@@ -126,7 +128,7 @@ const ProfilePage = () => {
 
     /// see if i follow him
     useEffect(() => {
-        if ( isMyProfile ) return;
+        if ( isGuest || isMyProfile ) return;
 
         console.log("ENTERED USEEFFECT SETDOIFOLLOW AND isMyProfile is false")
 
@@ -156,11 +158,13 @@ const ProfilePage = () => {
 
         setFollow()
 
-    }, [isMyProfile, usernamePath])
+    }, [isMyProfile, isGuest, usernamePath])
 
 
 
     const handleFollow = useCallback(() => {
+        if ( isGuest ) return;
+
         const follow = async () => {
 
             if ( isMyProfile ) return;
@@ -209,7 +213,7 @@ const ProfilePage = () => {
         <div className="header">
             <button className="icon-button"><FontAwesomeIcon icon={faArrowLeft} onClick={() => {navigate(-1)}}/></button>
             <h1>{displayUser.username}</h1>
-            {isMyProfile && (
+            {!isGuest && isMyProfile && (
                 <button className="icon-button" onClick={() => {navigate(`/profile/edit`)}}><FontAwesomeIcon icon={faCog} /></button>
             )}
         </div>
@@ -242,13 +246,13 @@ const ProfilePage = () => {
             </div>
         </div>
 
-        {isMyProfile && (
+        {!isGuest && isMyProfile && (
             <div className="actions">
                 <button className="primary-button" onClick={() => {navigate(`/profile/edit`)}}>Edit profile</button>
                 {/* <button className="secondary-button">See archive</button> */}
             </div>
         )}
-        {!isMyProfile && (
+        {!isGuest && !isMyProfile && (
             <div className="actions">
                 <button className="primary-button" onClick={handleFollow}>
                 {
@@ -258,12 +262,6 @@ const ProfilePage = () => {
             </div>
         )}
 
-
-        {/* <div className="tabs">
-            <button className="tab active"><FontAwesomeIcon icon={faTh} /></button>
-            <button className="tab"><FontAwesomeIcon icon={faBookmark} /></button>
-            <button className="tab"><FontAwesomeIcon icon={faUserTag} /></button>
-        </div> */}
         {userPrivacy === true && (
             <div className="no-posts-container">
                 <span>This user is private</span>

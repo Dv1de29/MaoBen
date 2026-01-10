@@ -17,9 +17,37 @@ const CreatePostPage = () => {
     const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
 
-        if (!file || !file.type.startsWith('image/')) {
-            alert("Please select a valid image file.");
+        if (!file || (!file.type.startsWith('image/') && !file.type.startsWith('video/'))) {
+            alert("Please select a valid image or video file.");
             return;
+        }
+
+        // 2. If it's a VIDEO, check duration
+        if (file.type.startsWith('video/')) {
+            const video = document.createElement('video');
+            video.preload = 'metadata';
+            
+            // Create a temporary URL to load the video metadata
+            const tempUrl = URL.createObjectURL(file);
+            video.src = tempUrl;
+
+            video.onloadedmetadata = () => {
+                // Clean up the temp URL immediately
+                URL.revokeObjectURL(tempUrl);
+
+                // Check Duration (e.g., 10 seconds)
+                if (video.duration > 10) {
+                    alert("Video must be 10 seconds or shorter.");
+                    if (fileInputRef.current) fileInputRef.current.value = ""; // Reset input
+                    return; 
+                }
+
+                // Duration is OK -> Proceed
+                setSelectedFile(file);
+                setPreviewUrl(URL.createObjectURL(file)); // Create final preview URL
+            };
+
+            return; // Stop here, the 'onloadedmetadata' callback handles the rest
         }
 
         setSelectedFile(file);
@@ -94,17 +122,27 @@ const CreatePostPage = () => {
                     onClick={triggerFileSelect}
                 >
                     {previewUrl ? (
-                        <img src={previewUrl} alt="Preview" className="post-preview-img" />
+                        // Check if the selected file is a video
+                        selectedFile?.type.startsWith('video/') ? (
+                            <video 
+                                src={previewUrl} 
+                                controls 
+                                className="preview-media" // Ensure you have CSS for this
+                            />
+                        ) : (
+                            <img 
+                                src={previewUrl} 
+                                alt="Preview" 
+                                className="preview-media" 
+                            />
+                        )
                     ) : (
-                        <div className="upload-placeholder">
-                            <span>+</span>
-                            <p>Click to add photo</p>
-                        </div>
+                        <div className="placeholder">Click to upload image or video</div>
                     )}
                     
                     <input 
                         type="file" 
-                        accept="image/*" 
+                        accept="image/*,video/*"
                         ref={fileInputRef} 
                         onChange={handleFileChange} 
                         style={{ display: 'none' }} 
