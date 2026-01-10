@@ -28,6 +28,8 @@ const EditProfilePage = () => {
         privacy: false,
     });
 
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
     const [uploading, setUploading] = useState(false);
     const originalImageUrlRef = useRef(INITIAL_USER.profile_image);
 
@@ -169,6 +171,8 @@ const EditProfilePage = () => {
                 if ( !res.ok ){
                     throw new Error(`Fetching error: ${res.status}, ${res.statusText}`);
                 }
+
+                console.log(res)
 
                 await refreshUser();
 

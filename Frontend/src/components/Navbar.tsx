@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom"; // Added useLocation
 import { useUser } from "../context/UserContext";
 import SearchDrawer from "./SearchDrawer";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faHouse, faMagnifyingGlass, faPlus, faSignOut, faMessage, faUsers, faBars } from '@fortawesome/free-solid-svg-icons';
+import { faHouse, faMagnifyingGlass, faPlus, faSignOut, faSignIn, faMessage, faUsers, faBars, faUser } from '@fortawesome/free-solid-svg-icons';
 import ReqDrawer from "./RequestsDrawer";
 
 interface UserNav {
@@ -18,8 +18,11 @@ function NavBar() {
 
     const isDrawerOpen = isSearchOpen || isReqOpen;
 
-    const location = useLocation(); // Hook to get current route
+    const location = useLocation();
     const userContext = useUser().user;
+
+    const isGuest = sessionStorage.getItem("userRole") === "Guest";
+
 
     const user: UserNav = {
         userName: userContext?.username || "Guest",
@@ -60,13 +63,15 @@ function NavBar() {
                             <span className={isDrawerOpen ? 'hidden-text' : ''}>Home</span>
                         </Link>
                     </li>
+
+
                     
-                    <li>
+                    {!isGuest && (<li>
                         <Link to="/profile" onClick={untoggleAll} className={`nav-item ${isActive('/profile')}`}>
                             <img src={user.userImage} alt="profile" className="nav-mini-avatar"/>
                             <span className={isDrawerOpen ? 'hidden-text' : ''}>Profile</span>
                         </Link>
-                    </li>
+                    </li>)}
 
                     <li onClick={() => {
                             untoggleReq();
@@ -78,6 +83,7 @@ function NavBar() {
                         </div>
                     </li>
 
+                    {!isGuest && (<>
                     <li onClick={() => {
                             untoggleSearch();
                             toggleReq();
@@ -100,19 +106,21 @@ function NavBar() {
                             <FontAwesomeIcon icon={faUsers} />
                             <span className={isDrawerOpen ? 'hidden-text' : ''}>Groups</span>
                         </Link>
-                    </li>
+                    </li></>
+                    )}
                 </ul>
 
                 {/* 3. "Create Post" - Distinct CTA Button */}
-                <div className="nav-cta-container">
+                {!isGuest && (<div className="nav-cta-container">
                     <Link to='/create_post' onClick={untoggleAll} className="create-post-btn">
                         <FontAwesomeIcon icon={faPlus} />
                         <span className={isDrawerOpen ? 'hidden-text' : ''}>New Post</span>
                     </Link>
-                </div>
+                </div>)}
 
                 {/* 4. Bottom Profile Card */}
-                <div className="nav-footer">
+                
+                {!isGuest && (<div className="nav-footer">
                     <Link to="/profile" className="user-card"
                         onClick={untoggleAll}
                     >
@@ -127,7 +135,29 @@ function NavBar() {
                     <Link to="/login" onClick={() => {sessionStorage.clear()}} className={`logout-btn ${isDrawerOpen ? 'hidden-text' : ''}`}>
                         <FontAwesomeIcon icon={faSignOut} />
                     </Link>
-                </div>
+                </div>)}
+                {isGuest && (
+                    <div className="nav-footer">
+                    <Link to="/login" className="user-card guest-card" onClick={() => sessionStorage.clear()}>
+                            {/* Fake Avatar Icon */}
+                            <div className="guest-avatar-placeholder">
+                                <FontAwesomeIcon icon={faUser} />
+                            </div>
+                            
+                            {/* Text Info */}
+                            <div className={`user-card-info ${isDrawerOpen ? 'hidden-text' : ''}`}>
+                                <span className="user-name">Welcome, Guest</span>
+                                <span className="user-handle">Log in to continue</span>
+                            </div>
+
+                            {/* Login Icon Arrow */}
+                            <div className={`guest-action-icon ${isDrawerOpen ? 'hidden-text' : ''}`}>
+                                <FontAwesomeIcon icon={faSignIn} />
+                            </div>
+                        </Link>
+
+                    </div>
+                )}
             </nav>
 
             {isSearchOpen && (<SearchDrawer isOpen={isSearchOpen} setIsOpen={setIsSearchOpen} />)}

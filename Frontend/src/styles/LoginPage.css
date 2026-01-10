@@ -14,7 +14,7 @@
   background-color: hsl(0 0% 8%);
   padding: 40px;
   width: 100%;
-  max-width: 400px; 
+  max-width: 500px;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   border: 1px solid #2b2b2b;
@@ -94,7 +94,16 @@
   transform: scale(1.01);
 }
 
+
+#name-group{
+    display: grid;
+    grid-template-columns: 1fr  1fr;
+    grid-template-rows: 1fr;
+    gap: 20px;
+}
+
 .login-btn {
+    margin-top: 10px;
   width: 100%;
   padding: 12px;
   background-color: #007bff;
@@ -109,6 +118,7 @@
 
 .login-btn:hover {
   background-color: #0056b3;
+  
 }
 
 
@@ -129,10 +139,19 @@
   text-decoration: underline;
 }
 
+.error-message{
+    color: red;
+    font: bold;
+    font-size: 15px;
+    margin: 20px 0px;
+    justify-self: center;
+}
+
 #message-error{
     color: red;
     font: bold;
     font-size: 15px;
+    justify-self: center;
 }
 
 footer {

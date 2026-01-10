@@ -1,14 +1,12 @@
 ﻿using Backend.Data;
 using Backend.DTOs.ProfileController;
-using Backend.Models; // Asigură-te că ai namespace-ul corect pentru DTO-uri
+using Backend.Models;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using Backend.DTOs;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using Backend.Services;
 
 namespace Backend.Controllers
 {
@@ -20,18 +18,20 @@ namespace Backend.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly AppDbContext _context;
+        private readonly IAiContentService _aiService;
 
-        public ProfileController(UserManager<ApplicationUser> userManager, IWebHostEnvironment webHostEnvironment, AppDbContext context)
+        public ProfileController(UserManager<ApplicationUser> userManager, IWebHostEnvironment webHostEnvironment, AppDbContext context, IAiContentService aiService)
         {
             _userManager = userManager;
             _webHostEnvironment = webHostEnvironment;
             _context = context;
+            _aiService = aiService; 
         }
 
         private string GenerateRandomId()
         {
             Random random = new Random();
-            long randomNumber = random.Next(1000000000) + 1000000000L; // Asigură 10 cifre
+            long randomNumber = random.Next(1000000000) + 1000000000L; 
             return randomNumber.ToString();
         }
 
@@ -39,21 +39,21 @@ namespace Backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetProfile()
         {
-          
+
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var user = await _userManager.FindByIdAsync(userId!);
             if (user == null) return NotFound("User not found.");
 
             var response = new GetProfileUserResponseDTO
             {
-                Name = user.FullName,
+                Name = user.FullName, // Asumi ca ai adaugat FullName in DTO conform codului tau anterior, sau il scoti daca da eroare
                 Username = user.UserName!,
                 Email = user.Email!,
                 ProfilePictureUrl = user.ProfilePictureUrl,
-                Privacy = user.Privacy,
+                Privacy = user.IsPrivate,
                 Description = user.Description,
-                FollowersCount=user.FollowersCount,
-                FollowingCount=user.FollowingCount
+                FollowersCount = user.FollowersCount,
+                FollowingCount = user.FollowingCount
             };
 
             return Ok(response);
@@ -83,7 +83,7 @@ namespace Backend.Controllers
                 Username = user.UserName!,
                 Email = user.Email!,
                 ProfilePictureUrl = user.ProfilePictureUrl,
-                Privacy = user.Privacy,
+                Privacy = user.IsPrivate,
                 Description = user.Description,
                 FollowersCount = user.FollowersCount,
                 FollowingCount = user.FollowingCount
@@ -99,52 +99,77 @@ namespace Backend.Controllers
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var user = await _userManager.FindByIdAsync(userId!);
 
+            // Pasul 1: Luăm userul inițial
+            var user = await _userManager.FindByIdAsync(userId!);
             if (user == null) return NotFound("User not found.");
 
+            // --- A. ACTUALIZARE USERNAME (O facem separat și salvăm) ---
             if (!string.IsNullOrWhiteSpace(dto.Username) && dto.Username != user.UserName)
             {
                 var existingUser = await _userManager.FindByNameAsync(dto.Username);
-                if (existingUser != null)
+                // Verificăm să nu fie luat de altcineva
+                if (existingUser != null && existingUser.Id != user.Id)
                 {
                     return BadRequest(new { message = $"Numele de utilizator '{dto.Username}' este deja folosit." });
                 }
 
+                // Această funcție face update, normalizează numele și salvează în DB automat
                 var setUserNameResult = await _userManager.SetUserNameAsync(user, dto.Username);
-                if (!setUserNameResult.Succeeded) return BadRequest(setUserNameResult.Errors);
+
+                if (!setUserNameResult.Succeeded)
+                {
+                    return BadRequest(setUserNameResult.Errors);
+                }
+
+                user = await _userManager.FindByIdAsync(userId!);
             }
 
-            if (dto.Privacy.HasValue)
+            // --- B. ACTUALIZARE RESTUL DATELOR ---
+
+            bool hasChanges = false; // Optimizare: salvăm doar dacă am schimbat ceva aici
+
+            if (dto.Privacy.HasValue && user.IsPrivate != dto.Privacy.Value)
             {
-                user.Privacy = dto.Privacy.Value;
+                user.IsPrivate = dto.Privacy.Value;
+                hasChanges = true;
             }
 
-            if (dto.Description != null)
+            if (dto.Description != null && user.Description != dto.Description)
             {
+                // --- FILTRARE AI ---
+                bool isSafe = await _aiService.IsContentSafeAsync(dto.Description);
+                if (!isSafe)
+                {
+                    return BadRequest("Descrierea profilului conține termeni nepotriviți. Te rugăm să reformulezi.");
+                }
+                // -------------------
                 user.Description = dto.Description;
+                hasChanges = true;
             }
 
-            if (dto.ProfilePictureUrl != null)
+            if (dto.ProfilePictureUrl != null && user.ProfilePictureUrl != dto.ProfilePictureUrl)
             {
                 user.ProfilePictureUrl = dto.ProfilePictureUrl;
+                hasChanges = true;
             }
 
-            var result = await _userManager.UpdateAsync(user);
-
-            if (result.Succeeded)
+            // --- C. SALVARE FINALĂ (Doar dacă e nevoie) ---
+            if (hasChanges)
             {
-                return Ok(new
-                {
-                    message = "Profil actualizat cu succes!",
-                    username = user.UserName,
-                    privacy = user.Privacy,
-                    description = user.Description,
-                    profilePictureUrl=user.ProfilePictureUrl,
-                });
+                var result = await _userManager.UpdateAsync(user);
+                if (!result.Succeeded) return BadRequest(result.Errors);
             }
 
-            return BadRequest(result.Errors);
+            // Returnăm datele actualizate
+            return Ok(new
+            {
+                message = "Profil actualizat cu succes!",
+                username = user.UserName,
+                privacy = user.IsPrivate,
+                description = user.Description,
+                profilePictureUrl = user.ProfilePictureUrl,
+            });
         }
 
         [HttpDelete]
@@ -154,7 +179,7 @@ namespace Backend.Controllers
             var user = await _userManager.FindByIdAsync(userId!);
 
             if (user == null) return NotFound("User not found.");
-            
+
 
             //Stergem manual userul
             var follows = _context.UserFollows
@@ -208,7 +233,7 @@ namespace Backend.Controllers
 
 
 
-            if ( users == null)
+            if (users == null)
             {
                 return Ok(new List<GetAllProfilesDTO>());
             }
@@ -232,7 +257,7 @@ namespace Backend.Controllers
                 return BadRequest("Nu a fost furnizat niciun fișier.");
             }
 
-            if(!image_path.ContentType.StartsWith("image/"))
+            if (!image_path.ContentType.StartsWith("image/"))
             {
                 return BadRequest("File type is wrong and should be: image/");
             }
@@ -267,7 +292,7 @@ namespace Backend.Controllers
             }
         }
 
-        
+
         [NonAction]
         public async Task<IActionResult> GetFollowers()
         {
@@ -289,7 +314,7 @@ namespace Backend.Controllers
                         Username = followerUser.UserName!,
                         Email = followerUser.Email!,
                         ProfilePictureUrl = followerUser.ProfilePictureUrl,
-                        Privacy = followerUser.Privacy,
+                        Privacy = followerUser.IsPrivate,
                         Description = followerUser.Description
                     });
                 }

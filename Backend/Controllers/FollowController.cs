@@ -50,7 +50,7 @@ namespace Backend.Controllers
             }
 
             // Logica de Privacy
-            var status = targetUser.Privacy ? FollowStatus.Pending : FollowStatus.Accepted;
+            var status = targetUser.IsPrivate ? FollowStatus.Pending : FollowStatus.Accepted;
 
             var newFollow = new UserFollow
             {

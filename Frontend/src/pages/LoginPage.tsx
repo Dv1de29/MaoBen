@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { type ChangeEvent, type FormEvent } from 'react';
 
 import { Link, useNavigate } from 'react-router-dom';
@@ -24,7 +24,12 @@ function LoginPage() {
 
     const [error, setError] = useState("");
 
-    const [showPass, setShowPass] = useState(false)
+    const [showPass, setShowPass] = useState(false);
+
+
+    useEffect(() => {
+        sessionStorage.clear();
+    }, []);
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -74,6 +79,12 @@ function LoginPage() {
         fetchLog();
     };
 
+    const tryGuest = () => {
+        if ( !sessionStorage.getItem("userRole") ){
+            sessionStorage.setItem("userRole", "Guest");
+        }
+    }
+
     return (
         <div className="login-page">
             <div className="login-card">
@@ -81,11 +92,8 @@ function LoginPage() {
                 <p className="login-subtitle">Please enter your details to sign in.</p>
                 
                 <form onSubmit={handleSubmit}>
-                    {error && (
-                    <div className="error-message" style={{color: 'red', marginBottom: '10px'}}>{error}</div>
-                    )}
                     <div className="form-group">
-                        <label htmlFor="email">Email Address</label>
+                        <label htmlFor="email">Email Address or Usernmae</label>
                         <div className="input-container">
                             <input 
                             type="text" 
@@ -119,16 +127,22 @@ function LoginPage() {
                         </div>
                     </div>
 
+                    {error && (
+                    <div className="error-message" style={{color: 'red', marginBottom: '10px'}}>{error}</div>
+                    )}
+
                     <button type="submit" className="login-btn">Sign In</button>
                 </form>
 
                 <div className="login-footer">
                     <p>Don't have an account? <Link to="/register">Sign up</Link></p>
+                    <p>Try as guest! <Link to={"/"} onClick={tryGuest}>Guest</Link></p>
                 </div>
+                
             </div>
             
             <footer className="app-footer">
-                <p>© 2025 si Ionut inca nu stie fotbal</p>
+                <p>© 2026 si Ionut inca nu stie fotbal</p>
             </footer>
         </div>
     );

@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Microsoft.Extensions.Hosting;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Backend.Models
@@ -8,20 +9,23 @@ namespace Backend.Models
         [Key]
         public int Id { get; set; }
 
-        [Required]
-        [MaxLength(500)]
-        public string Content { get; set; }
+        
+        [Required(ErrorMessage = "Comment content is required and cannot be empty.")]
+        [MaxLength(500, ErrorMessage = "The comment is too long. Please limit your comment to 500 characters.")]
+        public required string Content { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // Relatia cu User (Cine a scris comentariul)
-        [ForeignKey("User")]
-        public string UserId { get; set; } // FK Explicit
-        public ApplicationUser User { get; set; } = null!;
+        [Required(ErrorMessage = "The comment must be associated with an owner.")]
+        public required string UserId { get; set; }
 
-        // Relatia cu Post (La ce postare)
+        [Required(ErrorMessage = "The comment must be associated with a post.")]
         public int PostId { get; set; }
+
+        [ForeignKey("UserId")]
+        public virtual ApplicationUser User { get; set; } = default!;
+
         [ForeignKey("PostId")]
-        public Posts Post { get; set; } // Fara punct si virgula in plus
+        public virtual Posts Post { get; set; } = default!;
     }
 }

@@ -1,7 +1,7 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faXmarkCircle, faBookmark, faComment, faHeart } from '@fortawesome/free-solid-svg-icons';// Using regular for outline style
+import { faXmarkCircle, faBookmark, faComment, faHeart, faXmark, faListDots, faPlay } from '@fortawesome/free-solid-svg-icons';// Using regular for outline style
 import { faHeart as faHeartSolid } from '@fortawesome/free-solid-svg-icons'; // Solid for liked state
 
 import type { CommentApiType, CommentPostDTO, PostType } from '../assets/types';
@@ -16,15 +16,22 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
     const navigate = useNavigate();
     const myusername = sessionStorage.getItem("userName");
 
+    const myRole = sessionStorage.getItem("userRole");
+
     const [isLiked, setIsLiked] = useState<boolean>(post.has_liked);
     const [showComments, setShowComments] = useState<boolean>(false);
     const [displayComments, setDisplayComments] = useState<CommentApiType[]>([]);
     const [inputCommentValue, setInputCommentValue] = useState<string>("");
 
+
+    const [isPlaying, setIsPlaying] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
+
+
     const debounceTimer = useRef<number | null>(null);
     const pendingSave = useRef<{ id: number, state: boolean } | null>(null);
 
-    // --- Logic Section (Unchanged) ---
+
     useEffect(() => {
         return () => {
             if (debounceTimer.current) {
@@ -37,7 +44,24 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
         };
     }, [onToggleLike]);
 
+    const togglePlay = () => {
+        if (!videoRef.current) return;
+
+        if (isPlaying) {
+            videoRef.current.pause();
+            setIsPlaying(false);
+        } else {
+            videoRef.current.play();
+            setIsPlaying(true);
+        }
+    };
+
     const handleLike = () => {
+        if ( myRole === "Guest" ){
+            alert("You must be signed in to interact with posts");
+            return;
+        }
+
         const newLikeState = !isLiked;
         setIsLiked(newLikeState);
         pendingSave.current = { id: post.id, state: newLikeState };
@@ -53,7 +77,7 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
         const token = sessionStorage.getItem("userToken");
         try {
             const res = await fetch(`/api/Comments/${post_id}`, { headers: { 'Authorization': `Bearer ${token}` } });
-            if (!res.ok) throw new Error(`Response Error`);
+            if (!res.ok) throw new Error(`Response Error: ${res.status}, ${res.statusText}`);
             const data: CommentApiType[] = await res.json();
             setDisplayComments(data);
         } catch (e) { console.error(e); }
@@ -65,6 +89,12 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
     };
 
     const handlePostComment = async () => {
+        if ( myRole === "Guest" ){
+            alert("You must be signed in to interact with posts");
+            return;
+        }
+
+
         const token = sessionStorage.getItem("userToken");
         const commentPayload: CommentPostDTO = { postId: post.id, content: inputCommentValue };
         try {
@@ -98,10 +128,48 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
     }
 
     const handleDeleteComment = (comment_id: number) => {
+        if ( myRole === "Guest" ){
+            alert("You must be signed in to interact with posts");
+            return;
+        }
+
+
         const token = sessionStorage.getItem("userToken");
         fetch(`/api/Comments/${comment_id}`, { method: "DELETE", headers: { 'Authorization': `Bearer ${token}` } });
         setDisplayComments(prev => prev.filter(c => c.id !== comment_id));
     };
+
+    const handleDeletePost = (post_id: number ) => {
+        const token = sessionStorage.getItem("userToken");
+        fetch(`/api/Posts/${post_id}`, {
+            method: "DELETE",
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(res => {
+            if (!res.ok){
+                console.error("Cant delete post: ", res.status, res.statusText);
+                return;
+            }
+
+
+        });
+    }
+
+    const handleEditPost = (post_id: number) => {
+        navigate(`/p/edit/${post_id}`, {state: {postData: post}});
+    }
+
+    const canEdit = useMemo(() => {
+        return myusername === post.username || myRole === "Admin";
+    }, [myusername, post, myRole])
+
+
+
+    const isVideo = (url: string) => {
+        return /\.(mp4|webm|ogg|mov)$/i.test(url);
+    }
+
+    // console.log(post);
 
     // --- Render Section ---
     return (
@@ -127,9 +195,12 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
                     </div>
                 </div>
                 {/* Bookmark pushed to top right */}
-                {/* <button className="icon-btn bookmark-btn">
-                    <FontAwesomeIcon icon={faBookmark} />
-                </button> */}
+
+                {/* {canEdit && 
+                (<button className="icon-btn delete-btn"
+                onClick={() => handleDeletePost(post.id)}>
+                    <FontAwesomeIcon icon={faXmark} />
+                </button>)} */}
             </header>
 
             {/* 2. Content Text (Moved ABOVE Image) */}
@@ -138,9 +209,36 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
             </div>
 
             {/* 3. Media */}
-            <div className="post-media" onDoubleClick={handleLike}>
-                <img src={post.img_path} alt="Post content" />
-            </div>
+            { post.img_path &&
+            (<div className="post-media" onDoubleClick={handleLike}>
+                {isVideo(post.img_path) ? (
+                    <div className="video-wrapper" onClick={togglePlay}>
+                        <video 
+                            ref={videoRef}
+                            src={post.img_path} 
+                            loop 
+                            playsInline
+                            // Removing 'controls' makes it look cleaner (like Instagram)
+                            // If you want the scrubber bar, add 'controls' back
+                            className="post-video" 
+                        />
+                        
+                        {/* Overlay Icon: Shows Play when paused, Pause animation when playing (optional) */}
+                        {!isPlaying && (
+                            <div className="video-overlay">
+                                <FontAwesomeIcon icon={faPlay} />
+                            </div>
+                        )}
+                        
+                        {/* Optional: If you want a pause icon to flash briefly when pausing, 
+                            that requires more complex animation state. 
+                            Standard UI is: Show Play icon when Paused. Hide all icons when Playing. 
+                        */}
+                    </div>
+                ) : (
+                    <img src={post.img_path} alt="Post content" />
+                )}
+            </div>)}
 
             {/* 4. Footer: Action Bar (Icons + Counts) */}
             <div className="post-footer">
@@ -157,6 +255,10 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
                             <span className="action-count">{post.nr_comm}</span>
                         </button>
                     </div>
+                    { canEdit &&
+                    (<div className="action-right" onClick={() => handleEditPost(post.id)}>
+                        <FontAwesomeIcon icon={faListDots} />
+                    </div>)}
 
                 </div>
 
@@ -170,7 +272,7 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
                                     <span className="comment-user" onClick={() => navigate(`/profile/${comment.username}`)}>{comment.username}</span>
                                 </div>
                                 <span className="comment-text">{comment.content}</span>
-                                {(myusername === comment.username || myusername === post.username) && (
+                                {(myusername === comment.username || canEdit) && (
                                     <div className='delete-comment-icon' onClick={() => handleDeleteComment(comment.id)}>
                                         <FontAwesomeIcon icon={faXmarkCircle} />
                                     </div>

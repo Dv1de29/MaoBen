@@ -1,10 +1,13 @@
 ﻿using Backend.Data;
 using Backend.DTOs;
-using Backend.DTOs.GroupController;
+using Backend.DTOs.GroupController; 
 using Backend.Models;
+using Backend.Services; 
+using Backend.Hubs;     
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
@@ -12,21 +15,26 @@ namespace Backend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize] // Doar utilizatorii logați au acces la grupuri [cite: 19]
+    [Authorize]
     public class GroupsController : ControllerBase
     {
         private readonly AppDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IAiContentService _aiService;
+        private readonly IHubContext<ChatHub> _hubContext;
 
-        public GroupsController(AppDbContext context, UserManager<ApplicationUser> userManager)
+        // Injectăm IHubContext în constructor
+        public GroupsController(
+            AppDbContext context,
+            UserManager<ApplicationUser> userManager,
+            IAiContentService aiService,
+            IHubContext<ChatHub> hubContext) // <--- PARAMETRU NOU
         {
             _context = context;
             _userManager = userManager;
+            _aiService = aiService;
+            _hubContext = hubContext; // <--- ATRIBUIRE
         }
-
-        // ---------------------------------------------------------
-        // ZONA 1: GESTIUNE GRUPURI (CRUD basic)
-        // ---------------------------------------------------------
 
         // POST: api/Groups (Creare Grup)
         [HttpPost]
@@ -34,6 +42,13 @@ namespace Backend.Controllers
         {
             if (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.Description))
                 return BadRequest("Numele și descrierea sunt obligatorii.");
+
+            // --- VALIDARE AI: Nume si Descriere ---
+            if (!await _aiService.IsContentSafeAsync(dto.Name) || !await _aiService.IsContentSafeAsync(dto.Description))
+            {
+                return BadRequest("Numele sau descrierea grupului conțin termeni nepotriviți.");
+            }
+            // -------------------------------------
 
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -46,9 +61,8 @@ namespace Backend.Controllers
             };
 
             _context.Groups.Add(group);
-            await _context.SaveChangesAsync(); // Salvăm ca să avem ID-ul grupului
+            await _context.SaveChangesAsync();
 
-            // Moderatorul devine automat membru ACCEPTAT
             var member = new GroupMember
             {
                 GroupId = group.Id,
@@ -61,7 +75,7 @@ namespace Backend.Controllers
             return Ok(new { message = "Grup creat cu succes!", groupId = group.Id });
         }
 
-        // GET: api/Groups (Listare toate grupurile)
+        // GET: api/Groups
         [HttpGet]
         public async Task<IActionResult> GetAllGroups()
         {
@@ -75,7 +89,6 @@ namespace Backend.Controllers
                     Name = g.Name,
                     Description = g.Description,
                     OwnerUsername = g.Owner.UserName,
-                    // Verificăm dacă userul curent e deja membru (ca să știm ce buton afișăm în UI)
                     IsUserMember = _context.GroupMembers.Any(gm => gm.GroupId == g.Id && gm.UserId == currentUserId)
                 })
                 .ToListAsync();
@@ -83,7 +96,7 @@ namespace Backend.Controllers
             return Ok(groups);
         }
 
-        // DELETE: api/Groups/{id} (Ștergere Grup - Doar Moderatorul) [cite: 23]
+        // DELETE: api/Groups/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteGroup(int id)
         {
@@ -92,7 +105,9 @@ namespace Backend.Controllers
 
             if (group == null) return NotFound("Grupul nu există.");
 
-            if (group.OwnerId != currentUserId)
+            bool isAdmin = User.IsInRole("Admin") || User.IsInRole("Administrator");
+
+            if (group.OwnerId != currentUserId && !isAdmin)
                 return StatusCode(403, "Doar moderatorul poate șterge grupul.");
 
             _context.Groups.Remove(group);
@@ -100,21 +115,15 @@ namespace Backend.Controllers
             return Ok(new { message = "Grupul a fost șters." });
         }
 
-        // ---------------------------------------------------------
-        // ZONA 2: MEMBRI (Join, Accept, Kick, Leave)
-        // ---------------------------------------------------------
-
-        // POST: api/Groups/{id}/join (Cerere de alăturare) 
+        // POST: api/Groups/{id}/join
         [HttpPost("{id}/join")]
         public async Task<IActionResult> JoinGroup(int id)
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // Verificăm dacă grupul există
             var groupExists = await _context.Groups.AnyAsync(g => g.Id == id);
             if (!groupExists) return NotFound("Grupul nu există.");
 
-            // Verificăm dacă e deja membru
             var existingMember = await _context.GroupMembers.FindAsync(id, currentUserId);
             if (existingMember != null)
             {
@@ -127,7 +136,7 @@ namespace Backend.Controllers
             {
                 GroupId = id,
                 UserId = currentUserId,
-                Status = GroupMemberStatus.Pending // Default e Pending 
+                Status = GroupMemberStatus.Pending
             };
 
             _context.GroupMembers.Add(newMember);
@@ -136,7 +145,7 @@ namespace Backend.Controllers
             return Ok(new { message = "Cererea a fost trimisă către moderator." });
         }
 
-        // GET: api/Groups/{id}/requests (Moderatorul vede cererile)
+        // GET: api/Groups/{id}/requests
         [HttpGet("{id}/requests")]
         public async Task<IActionResult> GetPendingRequests(int id)
         {
@@ -160,7 +169,7 @@ namespace Backend.Controllers
             return Ok(requests);
         }
 
-        // PUT: api/Groups/{id}/accept/{userId} (Moderatorul acceptă) 
+        // PUT: api/Groups/{id}/accept/{userId}
         [HttpPut("{id}/accept/{userId}")]
         public async Task<IActionResult> AcceptMember(int id, string userId)
         {
@@ -179,7 +188,7 @@ namespace Backend.Controllers
             return Ok(new { message = "Utilizator acceptat în grup." });
         }
 
-        // DELETE: api/Groups/{id}/members/{userId} (Leave sau Kick) [cite: 23]
+        // DELETE: api/Groups/{id}/members/{userId}
         [HttpDelete("{id}/members/{userId}")]
         public async Task<IActionResult> RemoveMember(int id, string userId)
         {
@@ -190,15 +199,11 @@ namespace Backend.Controllers
             var memberToRemove = await _context.GroupMembers.FindAsync(id, userId);
             if (memberToRemove == null) return NotFound("Utilizatorul nu este membru.");
 
-            // LOGICA DE PERMISIUNI:
-            // 1. Userul iese singur (Leave)
-            // 2. Moderatorul dă Kick
             if (currentUserId != userId && currentUserId != group.OwnerId)
             {
                 return StatusCode(403, "Nu ai permisiunea de a elimina acest membru.");
             }
 
-            // Moderatorul nu poate ieși din grup decât dacă șterge grupul (opțional, dar logic)
             if (userId == group.OwnerId)
             {
                 return BadRequest("Moderatorul nu poate părăsi grupul. Trebuie șters grupul.");
@@ -210,18 +215,12 @@ namespace Backend.Controllers
             return Ok(new { message = "Utilizatorul a părăsit grupul." });
         }
 
-
-        // ---------------------------------------------------------
-        // ZONA 3: MESAJE (Doar pentru cei acceptați)
-        // ---------------------------------------------------------
-
         // GET: api/Groups/{id}/messages
         [HttpGet("{id}/messages")]
         public async Task<IActionResult> GetMessages(int id)
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // VERIFICARE CRITICĂ: Ești membru ACCEPTAT?
             var isMember = await _context.GroupMembers
                 .AnyAsync(gm => gm.GroupId == id && gm.UserId == currentUserId && gm.Status == GroupMemberStatus.Accepted);
 
@@ -230,7 +229,7 @@ namespace Backend.Controllers
             var messages = await _context.GroupMessages
                 .Where(m => m.GroupId == id)
                 .Include(m => m.User)
-                .OrderBy(m => m.CreatedAt) // Cronologic
+                .OrderBy(m => m.CreatedAt)
                 .Select(m => new GroupMessageDto
                 {
                     Id = m.Id,
@@ -246,14 +245,23 @@ namespace Backend.Controllers
         }
 
         // POST: api/Groups/{id}/messages
+        // MODIFICAT PENTRU SIGNALR
         [HttpPost("{id}/messages")]
         public async Task<IActionResult> SendMessage(int id, [FromBody] SendMessageDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Content)) return BadRequest("Mesajul nu poate fi gol.");
 
-            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            // --- VALIDARE AI: Mesaje Grup ---
+            bool isSafe = await _aiService.IsContentSafeAsync(dto.Content);
+            if (!isSafe)
+            {
+                return BadRequest("Mesajul tău conține termeni nepotriviți (insulte, hate speech).");
+            }
+            // --------------------------------
 
-           // VERIFICARE: Ești membru ACCEPTAT? 
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var currentUser = await _userManager.FindByIdAsync(currentUserId!); // Avem nevoie de user pentru poze/nume
+
             var isMember = await _context.GroupMembers
                 .AnyAsync(gm => gm.GroupId == id && gm.UserId == currentUserId && gm.Status == GroupMemberStatus.Accepted);
 
@@ -270,10 +278,25 @@ namespace Backend.Controllers
             _context.GroupMessages.Add(message);
             await _context.SaveChangesAsync();
 
+            // --- REAL-TIME: SIGNALR BROADCAST ---
+            // Trimitem mesajul prin socket către toți cei din grupul respectiv
+            var messageDto = new GroupMessageDto
+            {
+                Id = message.Id,
+                Content = message.Content,
+                CreatedAt = message.CreatedAt,
+                Username = currentUser.UserName,
+                ProfilePictureUrl = currentUser.ProfilePictureUrl,
+                IsMine = false // Frontend-ul va verifica dacă e mesajul propriu
+            };
+
+            // Notificăm grupul SignalR corespunzător ID-ului grupului din baza de date
+            await _hubContext.Clients.Group(id.ToString()).SendAsync("ReceiveGroupMessage", messageDto);
+
             return Ok(new { message = "Mesaj trimis." });
         }
 
-        // DELETE: api/Groups/{groupId}/messages/{messageId} (Ștergere mesaj propriu) 
+        // DELETE: api/Groups/{groupId}/messages/{messageId}
         [HttpDelete("{groupId}/messages/{messageId}")]
         public async Task<IActionResult> DeleteMessage(int groupId, int messageId)
         {
@@ -281,7 +304,10 @@ namespace Backend.Controllers
             var message = await _context.GroupMessages.FindAsync(messageId);
 
             if (message == null) return NotFound("Mesajul nu există.");
-            if (message.UserId != currentUserId) return StatusCode(403, "Poți șterge doar propriile mesaje.");
+
+            bool isAdmin = User.IsInRole("Admin") || User.IsInRole("Administrator");
+
+            if (message.UserId != currentUserId && !isAdmin) return StatusCode(403, "Poți șterge doar propriile mesaje.");
 
             _context.GroupMessages.Remove(message);
             await _context.SaveChangesAsync();

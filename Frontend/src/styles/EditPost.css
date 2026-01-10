@@ -1,0 +1,166 @@
+/* Layout Container */
+.edit-post-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #1a1a1a;
+    padding: 20px;
+}
+
+/* The Form Card */
+.edit-post-card {
+    background-color: #2a2a2a;
+    width: 100%;
+    max-width: 600px; /* Slightly wider for post editing */
+    padding: 30px;
+    border-radius: 12px;
+    border: 1px solid #333;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.edit-post-card h2 {
+    margin: 0;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+/* Post Image Preview Wrapper */
+.post-image-wrapper {
+    width: 100%;
+    /* Create a defined aspect ratio area or auto-height */
+    min-height: 200px;
+    max-height: 500px;
+    background-color: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative; /* For overlay text */
+    cursor: pointer;
+    border: 1px dashed #444;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.post-image-wrapper:hover {
+    border-color: #777;
+}
+
+.post-preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Ensures the whole image is seen */
+    display: block;
+    transition: opacity 0.3s;
+}
+
+.post-preview-img.dimmed {
+    opacity: 0.5;
+}
+
+.post-preview-video{
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    place-content: center;
+    display: block;
+    transition: opacity 0.3s;
+}
+
+
+
+
+/* Hint text showing "Click to change" on hover */
+.overlay-hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.6);
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    pointer-events: none; /* Let clicks pass through to wrapper */
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.post-image-wrapper:hover .overlay-hint {
+    opacity: 1;
+}
+
+/* Inputs */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.input-group label {
+    font-size: 0.9rem;
+    color: #bbb;
+    font-weight: 600;
+}
+
+.input-group textarea {
+    background-color: #1a1a1a;
+    border: 1px solid #444;
+    padding: 12px;
+    border-radius: 6px;
+    color: white;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.input-group textarea:focus {
+    border-color: #0095f6;
+}
+
+/* Buttons */
+.button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.button-group button {
+    flex: 1;
+    padding: 12px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 1rem;
+    border: none;
+    transition: opacity 0.2s;
+}
+
+.button-group button:hover {
+    opacity: 0.9;
+}
+
+.button-group button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-save {
+    background-color: #0095f6;
+    color: white;
+}
+
+.btn-delete{
+    background-color: red;
+    color: white;
+}
+
+.btn-cancel {
+    background-color: #444;
+    color: white;
+}

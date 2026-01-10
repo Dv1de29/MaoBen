@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PostType, PostApiType } from "../assets/types";
 import Post from "./Post";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCamera } from "@fortawesome/free-solid-svg-icons";
 
 
 interface PostContainerProsp{
@@ -30,19 +32,24 @@ function PostContainer(){
     const [initialLoading, setInitialLoading] = useState<boolean>(true);
     const [hasMore, setHasMore] = useState<boolean>(true);
 
+    const isGeust = sessionStorage.getItem("userRole") === "Guest";
+
     const observerTargetRef = useRef<HTMLDivElement>(null);
     const initialLoadRef = useRef(true);
 
+    console.log(isGeust)
+
     const fetchMyPosts = useCallback(async () => {
+        console.log("Entered fetched posts")
         if (loading || !hasMore) return;
         setLoading(true);
 
         const skipValue = (page - 1) * ITEMS_PER_PAGE;
 
         const token = sessionStorage.getItem("userToken");
-
+// ${isGeust ? "" : "/feed"}
         try{
-            const res = await fetch(`/api/posts/?count=${ITEMS_PER_PAGE}&skip=${skipValue}`, {
+            const res = await fetch(`/api/Posts${isGeust ? "" : "/feed"}?count=${ITEMS_PER_PAGE}&skip=${skipValue}`, {
                 headers:{
                     'Authorization': `Bearer ${token}`
                 }
@@ -92,9 +99,67 @@ function PostContainer(){
 
     }, [loading, hasMore, page])
 
+
+    const fetchAnyPosts = useCallback(async () => {
+        console.log("Entered fetched posts")
+        setLoading(true);
+
+        const skipValue = (page - 1) * ITEMS_PER_PAGE;
+
+
+        try{
+            const res = await fetch(`/api/Posts/?count=${ITEMS_PER_PAGE}&skip=${0}`)
+    
+            if ( !res.ok ){
+                if ( res.status === 204 || res.status === 404 || res.status === 400){
+                    setHasMore(false)
+                    setLoading(false)
+                    return;
+                }
+                throw new Error(`Response error: ${res.status},${res.statusText}`)
+            }
+
+            console.log(res)
+
+            const data: PostApiType[] = await res.json();
+
+            if (data.length === 0 || data.length < ITEMS_PER_PAGE) {
+                setHasMore(false);
+            }
+
+            console.log(data)
+            const transformedPosts = data.map((postData: PostApiType) => {
+                return{
+                    id: postData.id,
+                    owner: postData.owner,
+                    img_path: postData.image_path,
+                    description: postData.description,
+                    nr_likes: postData.nr_likes,
+                    nr_comm: postData.nr_comms,
+                    has_liked: postData.has_liked,
+                    created: postData.created,
+                    username: postData.username,
+                    user_image_path: postData.user_image_path ? postData.user_image_path : "/assets/img/no_user.png",
+                }
+            });
+
+            setPosts(prev => [...prev, ...transformedPosts]);
+            setPage(prev => prev+1);
+
+        } catch(e){
+            console.error("Error at loading my posts: ", e)
+        } finally{
+            setLoading(false);
+            setInitialLoading(false);
+        }
+        
+
+    }, [loading, hasMore, page])
+
+
     //fetching first set
     useEffect(() => {
-        if ( initialLoadRef.current){
+        if ( initialLoadRef.current ){
             initialLoadRef.current = false;
             fetchMyPosts();
         }
@@ -163,6 +228,23 @@ function PostContainer(){
         });
 
     }, [])
+
+    if ( posts.length <= 0 ) return (
+        <>
+            <div className="feed-layout">
+                <span className="no-posts">{"No posts found"}</span>
+                <br></br>
+                <span className="no-posts">Start following poeple to see their posts</span>
+                <br></br>
+                <div className="no-posts-icon-wrapper">
+                    <FontAwesomeIcon className="no-posts-icon" icon={faCamera}/>
+                </div>
+                <button className="btn-fetchAny" onClick={fetchAnyPosts}>
+                    <span>Or see other posts</span>
+                </button>
+            </div>
+        </>
+    )
 
     return(
         <div className="feed-layout">

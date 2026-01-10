@@ -4,23 +4,29 @@ namespace Backend.DTOs.AuthController
 {
     public class RegisterUserDTO
     {
-        [Required]
-        public string FirstName { get; set; }
+        [Required(ErrorMessage = "First name is required.")]
+        [MaxLength(50, ErrorMessage = "First name cannot exceed 100 characters.")]
+        public required string FirstName { get; set; }
 
-        [Required]
-        public string LastName { get; set; }
+        [Required(ErrorMessage = "Last name is required.")]
+        [MaxLength(50, ErrorMessage = "Last name cannot exceed 100 characters.")]
+        public required string LastName { get; set; }
 
-        [Required]
-        public string Username { get; set; }
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; }
-        [Required]
-        [MinLength(6)] 
-        public string Password { get; set; }
+        [Required(ErrorMessage = "Username is required.")]
+        [MaxLength(256, ErrorMessage = "Username cannot exceed 256 characters.")]
+        public required string Username { get; set; }
 
-        [Required]
-        [Compare("Password", ErrorMessage = "Passwords do not match")]
-        public string ConfirmPassword { get; set; }
+        [Required(ErrorMessage = "Email address is required.")]
+        [EmailAddress(ErrorMessage = "Invalid email address format.")]
+        [MaxLength(256, ErrorMessage = "Email cannot exceed 256 characters.")]
+        public required string Email { get; set; }
+
+        [Required(ErrorMessage = "Password is required.")]
+        [MinLength(6, ErrorMessage = "Password must be at least 6 characters long.")]
+        public required string Password { get; set; }
+
+        [Required(ErrorMessage = "Please confirm your password.")]
+        [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
+        public required string ConfirmPassword { get; set; }
     }
 }
