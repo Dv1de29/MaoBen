@@ -7,14 +7,18 @@ import UserIcon from '../assets/svg/user-icon.svg'
 import OpenLock from '../assets/svg/lock-open-icon.svg'
 import CloseLock from '../assets/svg/lock-close-icon.svg'
 
+import { faMailBulk } from '@fortawesome/free-solid-svg-icons';
+
 
 import '../styles/LoginPage.css';
 import { useUser } from '../context/UserContext';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 function RegisterPage() {
     const navigate = useNavigate();
     const { refreshUser } = useUser();
 
+    
     const [formData, setFormData] = useState({
         firstName: 'Ionut',
         lastName: 'C#',
@@ -23,7 +27,8 @@ function RegisterPage() {
         password: '',
         confirmPassword: '',
     });
-
+    
+    console.log(formData);
     const [error, setError] = useState<string>("")
 
     const [errorMessage, setErrorMessage] = useState({
@@ -77,6 +82,8 @@ function RegisterPage() {
            })
         }
 
+    
+
         if ( !ok ){
             return;
         }
@@ -94,13 +101,27 @@ function RegisterPage() {
 
                 if ( !res.ok ) {
                     const errorData = await res.json();
-                    throw new Error(errorData || `Response not ok: ${res.status}, ${res.statusText}`);
+        
+                    // 2. Format the error into a string BEFORE throwing
+                    let errorMessage = "Registration failed.";
+                    
+                    if (Array.isArray(errorData)) {
+                        // Handle array of Identity errors
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        errorMessage = errorData.map((err: any) => err.description || err.code).join("\n");
+                    } else if (errorData && typeof errorData === 'object') {
+                        // Handle single object error
+                        errorMessage = errorData.message || JSON.stringify(errorData);
+                    } else if (typeof errorData === 'string') {
+                        errorMessage = errorData;
+                    }
+                    throw new Error(errorMessage || `Response not ok: ${res.status}, ${res.statusText}`);
                 }
 
                 const data = await res.json();
 
-                sessionStorage.setItem("userToken", data.token)
-                sessionStorage.setItem("userName", data.username)
+                sessionStorage.setItem("userToken", data.token);
+                sessionStorage.setItem("userName", data.username);
                 sessionStorage.setItem("userRole", data.role);
 
                 refreshUser();
@@ -108,7 +129,7 @@ function RegisterPage() {
             
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } catch(e: any){
-                console.error("Register failed:", e);
+                console.log("Register failed:", e);
                 setError(e.toString())
             }
         }
@@ -123,9 +144,40 @@ function RegisterPage() {
                 <p className="login-subtitle">Please enter your details to sign in.</p>
                 
                 <form onSubmit={handleSubmit}>
-                    {error && (
-                    <div className="error-message" style={{color: 'red', marginBottom: '10px'}}>{error}</div>
-                    )}
+                    <div className="form-group" id='name-group'>
+                        <div className="form-group">
+                            <label htmlFor="email">First Name</label>
+                            <div className="input-container">
+                                <input 
+                                type="text" 
+                                id="firstName" 
+                                name="firstName" 
+                                placeholder="user@example.com"
+                                value={formData.firstName} 
+                                onChange={handleChange} 
+                                required 
+                                />
+                                {/* <img src={UserIcon} alt="" /> */}
+                            </div>
+                            <span id="message-error">{errorMessage.emailMessage}</span>
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="email">Last Name</label>
+                            <div className="input-container">
+                                <input 
+                                type="text" 
+                                id="lastName" 
+                                name="lastName" 
+                                placeholder="user@example.com"
+                                value={formData.lastName} 
+                                onChange={handleChange} 
+                                required 
+                                />
+                                {/* <img src={UserIcon} alt="" /> */}
+                            </div>
+                            <span id="message-error">{errorMessage.emailMessage}</span>
+                        </div>
+                    </div>
                     <div className="form-group">
                         <label htmlFor="username">Username</label>
                         <div className="input-container">
@@ -154,7 +206,8 @@ function RegisterPage() {
                             onChange={handleChange} 
                             required 
                             />
-                            <img src={UserIcon} alt="" />
+                            {/* <img src={UserIcon} alt="" /> */}
+                            <FontAwesomeIcon icon={faMailBulk} />
                         </div>
                         <span id="message-error">{errorMessage.emailMessage}</span>
                     </div>
@@ -180,7 +233,7 @@ function RegisterPage() {
                     </div>
 
                     <div className="form-group">
-                        <label htmlFor="password-check">Password</label>
+                        <label htmlFor="password-check">Confirm Password</label>
                         <div className="input-container">
                             <input 
                             type={showPassCheck ? "text" : "password"} 
@@ -199,11 +252,15 @@ function RegisterPage() {
                         <span id="message-error">{errorMessage.passCheckMessage}</span>
                     </div>
 
-                    <button type="submit" className="login-btn">Sign In</button>
+                    {error && (
+                    <div className="error-message">{error}</div>
+                    )}
+
+                    <button type="submit" className="login-btn">Register</button>
                 </form>
 
                 <div className="login-footer">
-                    <p>Don't have an account? <Link to="/register">Sign up</Link></p>
+                    <p>Already registered? <Link to="/login">Sign In</Link></p>
                 </div>
             </div>
             <footer className="app-footer">

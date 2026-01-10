@@ -38,7 +38,7 @@ const CreatePostPage = () => {
                 // Check Duration (e.g., 10 seconds)
                 if (video.duration > 10) {
                     alert("Video must be 10 seconds or shorter.");
-                    if (fileInputRef.current) fileInputRef.current.value = ""; // Reset input
+                    if (fileInputRef.current) fileInputRef.current.value = ""; 
                     return; 
                 }
 

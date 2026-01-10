@@ -6,42 +6,45 @@ import '../styles/EditPost.css';
 
 const EditPostPage = () => {
     const navigate = useNavigate();
-    const { post_id } = useParams(); // Get the ID from the route (e.g., /post/edit/:post_id)
-
+    const { post_id } = useParams(); 
     const location = useLocation();
 
-    // State for the form data
-    const [formData, setFormData] = useState({
-        description: "",
-        image_path: "",
-    });
+    // --- STATE ---
+    const [description, setDescription] = useState("");
+    
+    // The source of truth for what is displayed (Server URL OR Local Blob)
+    const [previewUrl, setPreviewUrl] = useState(""); 
+    
+    // Explicitly track type so we know if we should render <video> or <img>
+    const [mediaType, setMediaType] = useState<"image" | "video">("image");
 
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
     
-    // To revert if needed or compare changes
-    const originalImageRef = useRef(""); 
+    // Ref for the hidden input
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // 1. Fetch the existing Post data
+    // Helper: Detect type from Server URL (extensions)
+    const getMediaTypeFromUrl = (url: string): "image" | "video" => {
+        if (/\.(mp4|webm|ogg|mov)$/i.test(url)) return "video";
+        return "image";
+    };
+
+    // 1. Fetch Existing Data (Initialize Preview)
     useEffect(() => {
         const fetchPost = async () => {
             if (!post_id) return;
 
-            if ( location.state && location.state.postData ){
-                console.log("FROM STATE LOCATION");
+            // A. Optimization: Load from Navigation State
+            if (location.state && location.state.postData){
                 const data: PostType = location.state.postData;
-
-                originalImageRef.current = data.img_path
-                setFormData({
-                    description: data.description,
-                    image_path: data.img_path
-                });
+                initializeForm(data);
                 return;
             }
 
+            // B. Fallback: Fetch from API
             try {
                 const token = sessionStorage.getItem("userToken");
-                // Assuming GET /api/Posts/{id} exists
                 const res = await fetch(`/api/Posts/${post_id}`, {
                     method: "GET",
                     headers: {
@@ -50,142 +53,179 @@ const EditPostPage = () => {
                     }
                 });
 
-                if (!res.ok) {
-                    throw new Error(`Fetching error: ${res.status}, ${res.statusText}`);
-                }
-
-                // Assuming the API returns a standard Post object
+                if (!res.ok) throw new Error(`Fetching error: ${res.status}`);
                 const data: PostType = await res.json();
-
-                // Store original values
-                originalImageRef.current = data.img_path;
-
-                setFormData({
-                    description: data.description,
-                    image_path: data.img_path
-                });
+                initializeForm(data);
 
             } catch(e) {
                 console.error("Error fetching post: ", e);
-                // Optional: navigate back if post doesn't exist
-                // navigate(-1);
             }
-        }
+        };
+
+        const initializeForm = (data: PostType) => {
+            setDescription(data.description);
+            // Initialize preview with the server URL
+            setPreviewUrl(data.img_path);
+            // Determine initial media type
+            setMediaType(getMediaTypeFromUrl(data.img_path));
+        };
 
         fetchPost();
     }, [post_id, location.state]);
 
 
     // 2. Handle Text Change
-    const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
-        setFormData(prev => ({
-            ...prev,
-            description: e.target.value
-        }));
+    const handleTextChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+        setDescription(e.target.value);
     };
 
-    // 3. Handle Image Click (Trigger File Input)
+    // 3. Handle Image Click
     const handleImageClick = () => {
         if (!uploading && fileInputRef.current) {
             fileInputRef.current.click();
         }
     }
 
-    // 4. Handle File Selection & Upload
-    const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    // 4. Handle File Selection (With Preview Update)
+    const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file || !file.type.startsWith('image/')) return;
+        if (!file) return;
 
-        // Create local preview immediately
-        const previewUrl = URL.createObjectURL(file);
-        setFormData(prev => ({ ...prev, image_path: previewUrl }));
-
-        setUploading(true);
-
-        const formDataPayload = new FormData();
-        formDataPayload.append('image_path', file); 
-
-        try {
-            const token = sessionStorage.getItem("userToken");
-            // Assuming an endpoint exists to upload post images, or reuse a generic one
-            const res = await fetch("/api/Posts/upload_image", { 
-                method: "POST",
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                body: formDataPayload
-            });
-
-            if (!res.ok) throw new Error(`Error response: ${res.status}`);
-
-            const result: { filePath: string } = await res.json();
-
-            // Update state with the server-side path
-            setFormData(prev => ({ ...prev, image_path: result.filePath }));
-            
-            URL.revokeObjectURL(previewUrl); // Cleanup memory
-        } catch(e) {
-            console.error("Error uploading image: ", e);
-            // Revert on failure
-            setFormData(prev => ({ ...prev, image_path: originalImageRef.current }));
-            alert("Failed to upload image.");
-            URL.revokeObjectURL(previewUrl);
-        } finally {
-            setUploading(false);
-            if (e.target.value) e.target.value = ''; // Reset input
+        // Validation
+        if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+            alert("File must be a video or image");
+            return;
         }
+
+        // --- VIDEO HANDLING ---
+        if (file.type.startsWith('video/')) {
+            const video = document.createElement('video');
+            video.preload = 'metadata';
+            const tempUrl = URL.createObjectURL(file);
+            video.src = tempUrl;
+
+            video.onloadedmetadata = () => {
+                URL.revokeObjectURL(tempUrl);
+                
+                // Duration Check
+                if (video.duration > 10) {
+                    alert("Video must be 10 seconds or shorter.");
+                    if (fileInputRef.current) fileInputRef.current.value = ""; 
+                    return; 
+                }
+
+                // Success
+                setSelectedFile(file);
+                const objectUrl = URL.createObjectURL(file);
+                setPreviewUrl(objectUrl); // <--- Updates the UI immediately
+                setMediaType("video");    // <--- Tells UI to render <video> tag
+            };
+            return;
+        }
+
+        // --- IMAGE HANDLING ---
+        setSelectedFile(file);
+        const objectUrl = URL.createObjectURL(file);
+        setPreviewUrl(objectUrl); // <--- Updates the UI immediately
+        setMediaType("image");    // <--- Tells UI to render <img> tag
     }
 
     // 5. Submit Changes
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
+        setUploading(true);
         
         try {
             const token = sessionStorage.getItem("userToken");
+            
+            const formDataPayload = new FormData();
+            formDataPayload.append("Description", description);
+            
+            // Only append file if changed
+            if (selectedFile) {
+                formDataPayload.append("Image", selectedFile);
+            }
 
-            // PUT /api/Posts/{id}
             const res = await fetch(`/api/Posts/${post_id}`, {
                 method: "PUT",
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    description: formData.description,
-                    img_path: formData.image_path, // Send updated image path
-                })
+                body: formDataPayload
             });
 
             if (!res.ok) {
-                throw new Error(`Update error: ${res.status}`);
+                const contentType = res.headers.get("content-type");
+                let errorMessage = "Update failed";
+                if (contentType && contentType.includes("application/json")) {
+                    const errorData = await res.json();
+                    errorMessage = errorData.message || JSON.stringify(errorData);
+                } else {
+                    errorMessage = await res.text();
+                }
+                throw new Error(errorMessage);
             }
 
-            // Navigate back on success
             navigate(-1); 
-
-        } catch(e) {
+        
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } catch(e: any) {
             console.error("Error updating post: ", e);
-            alert("Failed to update post.");
+            alert(e.message || "Failed to update post.");
+        } finally {
+            setUploading(false);
         }
     };
+
+    const handleDeletePost = () => {
+        const token = sessionStorage.getItem("userToken");
+        fetch(`/api/Posts/${post_id}`, {
+            method: "DELETE",
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(() => navigate(-1));
+    }
+
+    // Cleanup Blob URLs on unmount
+    useEffect(() => {
+        return () => {
+            if (previewUrl && previewUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(previewUrl);
+            }
+        }
+    }, [previewUrl]);
 
     return (
         <div className="edit-post-container">
             <form className="edit-post-card" onSubmit={handleSubmit}>
                 <h2>Edit Post</h2>
 
-                {/* Post Image Section (Click to edit) */}
+                {/* Media Preview Section */}
                 <div className="post-image-wrapper" onClick={handleImageClick}>
-                    <img 
-                        src={formData.image_path} 
-                        alt="Post Preview" 
-                        className={`post-preview-img ${uploading ? 'dimmed' : ''}`}
-                    />
-                    <div className="overlay-hint">Click to change image</div>
+                    
+                    {/* Render based on Explicit State (not just URL string) */}
+                    {mediaType === 'video' ? (
+                        <video 
+                            src={previewUrl} 
+                            controls 
+                            muted 
+                            loop 
+                            playsInline
+                            className="post-preview-video" 
+                        />
+                    ) : (
+                        <img 
+                            src={previewUrl} 
+                            alt="Post Preview" 
+                            className={`post-preview-img ${uploading ? 'dimmed' : ''}`} 
+                        />
+                    )}
+                    
+                    <div className="overlay-hint">Click to change media</div>
                     
                     <input
                         type="file"
-                        accept="image/*"
+                        accept="image/*,video/*"
                         ref={fileInputRef}
                         onChange={handleFileChange}
                         style={{ display: 'none' }}
@@ -199,8 +239,8 @@ const EditPostPage = () => {
                     <textarea 
                         name="description"
                         rows={6}
-                        value={formData.description}
-                        onChange={handleChange}
+                        value={description}
+                        onChange={handleTextChange}
                         placeholder="Write a caption..."
                     />
                 </div>
@@ -213,6 +253,13 @@ const EditPostPage = () => {
                         onClick={() => navigate(-1)}
                     >
                         Cancel
+                    </button>
+                    <button 
+                        type="button" 
+                        className="btn-delete" 
+                        onClick={handleDeletePost}
+                    >
+                        Delete
                     </button>
                     <button 
                         type="submit" 

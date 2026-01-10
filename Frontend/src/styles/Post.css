@@ -98,12 +98,62 @@
     align-items: center;
 }
 
-.post-media img {
+.post-media img, .post-media video {
     width: 100%;
     height: auto;
     display: block;
     object-fit: cover;
 }
+
+/* Video optional */
+.video-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    display: flex; /* Removes bottom space under video tag */
+}
+
+/* The actual video element */
+.post-video {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+    max-height: 600px;
+    background-color: black;
+}
+
+/* The Center Icon Overlay */
+.video-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    
+    /* Circle Styling */
+    width: 60px;
+    height: 60px;
+    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
+    border-radius: 50%;
+    
+    /* Icon Centering */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    /* Icon Color */
+    color: white;
+    font-size: 24px;
+    
+    /* Prevent the overlay from blocking the click event on the parent wrapper */
+    pointer-events: none; 
+    
+    /* Optional: Fade effect */
+    transition: opacity 0.2s ease;
+}
+
+
 
 /* --- 5. Footer & Actions --- */
 .post-footer {

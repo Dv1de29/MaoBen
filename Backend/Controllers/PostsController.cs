@@ -240,9 +240,10 @@ namespace Backend.Controllers
                 return BadRequest("Image is required.");
             }
 
-            if (!dto.Image.ContentType.StartsWith("image/"))
+            if (!dto.Image.ContentType.StartsWith("image/") && !dto.Image.ContentType.StartsWith("video/"))
             {
-                return BadRequest("File type is wrong and should be: image/");
+                Console.WriteLine(dto.Image.ContentType);
+                return BadRequest("File type is wrong and should be image/ or video/");
             }
 
             string uniqueId = this.GenerateRandomId();
@@ -371,7 +372,7 @@ namespace Backend.Controllers
 
             if (dto.Image != null && dto.Image.Length > 0)
             {
-                if (!dto.Image.ContentType.StartsWith("image/"))
+                if (!dto.Image.ContentType.StartsWith("image/") && !dto.Image.ContentType.StartsWith("video/"))
                 {
                     return BadRequest("Fișierul trebuie să fie o imagine.");
                 }
