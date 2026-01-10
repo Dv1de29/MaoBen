@@ -50,7 +50,7 @@ namespace Backend.Controllers
                 Username = user.UserName!,
                 Email = user.Email!,
                 ProfilePictureUrl = user.ProfilePictureUrl,
-                Privacy = user.Privacy,
+                Privacy = user.IsPrivate,
                 Description = user.Description,
                 FollowersCount = user.FollowersCount,
                 FollowingCount = user.FollowingCount
@@ -83,7 +83,7 @@ namespace Backend.Controllers
                 Username = user.UserName!,
                 Email = user.Email!,
                 ProfilePictureUrl = user.ProfilePictureUrl,
-                Privacy = user.Privacy,
+                Privacy = user.IsPrivate,
                 Description = user.Description,
                 FollowersCount = user.FollowersCount,
                 FollowingCount = user.FollowingCount
@@ -129,9 +129,9 @@ namespace Backend.Controllers
 
             bool hasChanges = false; // Optimizare: salvăm doar dacă am schimbat ceva aici
 
-            if (dto.Privacy.HasValue && user.Privacy != dto.Privacy.Value)
+            if (dto.Privacy.HasValue && user.IsPrivate != dto.Privacy.Value)
             {
-                user.Privacy = dto.Privacy.Value;
+                user.IsPrivate = dto.Privacy.Value;
                 hasChanges = true;
             }
 
@@ -166,7 +166,7 @@ namespace Backend.Controllers
             {
                 message = "Profil actualizat cu succes!",
                 username = user.UserName,
-                privacy = user.Privacy,
+                privacy = user.IsPrivate,
                 description = user.Description,
                 profilePictureUrl = user.ProfilePictureUrl,
             });
@@ -314,7 +314,7 @@ namespace Backend.Controllers
                         Username = followerUser.UserName!,
                         Email = followerUser.Email!,
                         ProfilePictureUrl = followerUser.ProfilePictureUrl,
-                        Privacy = followerUser.Privacy,
+                        Privacy = followerUser.IsPrivate,
                         Description = followerUser.Description
                     });
                 }

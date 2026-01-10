@@ -97,7 +97,7 @@ namespace Backend.Controllers
 
         // --- FEED PERSONALIZAT ---
         [Authorize]
-        [HttpGet("feed_personalizat")]
+        [HttpGet("feed")]
         public async Task<IActionResult> GetFeed([FromQuery] int count = 20, [FromQuery] int skip = 0)
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
