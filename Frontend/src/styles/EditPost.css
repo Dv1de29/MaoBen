@@ -61,6 +61,18 @@
     opacity: 0.5;
 }
 
+.post-preview-video{
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    place-content: center;
+    display: block;
+    transition: opacity 0.3s;
+}
+
+
+
+
 /* Hint text showing "Click to change" on hover */
 .overlay-hint {
     position: absolute;
@@ -140,6 +152,11 @@
 
 .btn-save {
     background-color: #0095f6;
+    color: white;
+}
+
+.btn-delete{
+    background-color: red;
     color: white;
 }
 

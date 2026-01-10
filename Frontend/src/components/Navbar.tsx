@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom"; // Added useLocation
 import { useUser } from "../context/UserContext";
 import SearchDrawer from "./SearchDrawer";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faHouse, faMagnifyingGlass, faPlus, faSignOut, faSignIn, faMessage, faUsers, faBars } from '@fortawesome/free-solid-svg-icons';
+import { faHouse, faMagnifyingGlass, faPlus, faSignOut, faSignIn, faMessage, faUsers, faBars, faUser } from '@fortawesome/free-solid-svg-icons';
 import ReqDrawer from "./RequestsDrawer";
 
 interface UserNav {
@@ -137,12 +137,26 @@ function NavBar() {
                     </Link>
                 </div>)}
                 {isGuest && (
-                    <Link to="/login" className="nav-footer"
-                        onClick={() => {sessionStorage.clear();}}
-                    >
-                        <span>Log In</span>
-                        <FontAwesomeIcon icon={faSignIn} />
-                    </Link>
+                    <div className="nav-footer">
+                    <Link to="/login" className="user-card guest-card" onClick={() => sessionStorage.clear()}>
+                            {/* Fake Avatar Icon */}
+                            <div className="guest-avatar-placeholder">
+                                <FontAwesomeIcon icon={faUser} />
+                            </div>
+                            
+                            {/* Text Info */}
+                            <div className={`user-card-info ${isDrawerOpen ? 'hidden-text' : ''}`}>
+                                <span className="user-name">Welcome, Guest</span>
+                                <span className="user-handle">Log in to continue</span>
+                            </div>
+
+                            {/* Login Icon Arrow */}
+                            <div className={`guest-action-icon ${isDrawerOpen ? 'hidden-text' : ''}`}>
+                                <FontAwesomeIcon icon={faSignIn} />
+                            </div>
+                        </Link>
+
+                    </div>
                 )}
             </nav>
 

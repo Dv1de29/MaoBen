@@ -92,11 +92,8 @@ function LoginPage() {
                 <p className="login-subtitle">Please enter your details to sign in.</p>
                 
                 <form onSubmit={handleSubmit}>
-                    {error && (
-                    <div className="error-message" style={{color: 'red', marginBottom: '10px'}}>{error}</div>
-                    )}
                     <div className="form-group">
-                        <label htmlFor="email">Email Address</label>
+                        <label htmlFor="email">Email Address or Usernmae</label>
                         <div className="input-container">
                             <input 
                             type="text" 
@@ -130,6 +127,10 @@ function LoginPage() {
                         </div>
                     </div>
 
+                    {error && (
+                    <div className="error-message" style={{color: 'red', marginBottom: '10px'}}>{error}</div>
+                    )}
+
                     <button type="submit" className="login-btn">Sign In</button>
                 </form>
 
@@ -141,7 +142,7 @@ function LoginPage() {
             </div>
             
             <footer className="app-footer">
-                <p>© 2025 si Ionut inca nu stie fotbal</p>
+                <p>© 2026 si Ionut inca nu stie fotbal</p>
             </footer>
         </div>
     );

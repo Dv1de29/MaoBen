@@ -201,7 +201,12 @@ const ProfilePage = () => {
         }
 
         follow();
-    }, [doIFollow, usernamePath, displayUser])
+    }, [doIFollow, usernamePath, displayUser]);
+
+    const isVideo = (url: string) => {
+        return /\.(mp4|webm|ogg|mov)$/i.test(url);
+    };
+
 
     if (!displayUser && loading) return <div className="loading" style={{color: "white"}}>Loading...</div>;
 
@@ -285,7 +290,24 @@ const ProfilePage = () => {
                         } }} 
                         key={post.id}
                     >
-                        <div className="grid-item" ><img src={post.img_path} alt="Post 1" /></div>
+                        <div className="grid-item">
+                            {isVideo(post.img_path) ? (
+                                <div className="video-thumbnail-container">
+                                    <video 
+                                        src={post.img_path} 
+                                        muted 
+                                        preload="metadata" // Loads first frame as thumbnail
+                                        className="grid-media"
+                                    />
+                                    {/* Optional: Overlay icon to show it's a video */}
+                                    <div className="video-icon-overlay">
+                                        {/* <FontAwesomeIcon icon={faPlay} /> */}
+                                    </div>
+                                </div>
+                            ) : (
+                                <img src={post.img_path} alt="Post" className="grid-media" />
+                            )}
+                        </div>
                     </Link>
                 ))}
             </div>

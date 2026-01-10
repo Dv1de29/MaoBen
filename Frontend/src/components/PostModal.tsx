@@ -97,12 +97,15 @@ function PostModal() {
     return (
         <div className="modal-overlay" onClick={onClose}>
             {/* Added styling to stop propagation on the whole content box */}
+                {/* Close Button - Now Sticky */}
+                <div className="btn-close-wrapper">
+                    <button className="close-btn" onClick={onClose}>
+                        <FontAwesomeIcon icon={faXmark} />
+                    </button>
+
+                </div>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
                 
-                {/* Close Button - Now Sticky */}
-                <button className="close-btn" onClick={onClose}>
-                    <FontAwesomeIcon icon={faXmark} />
-                </button>
 
                 {post && (
                     <Post post={post} onToggleLike={handleLike} />

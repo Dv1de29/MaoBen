@@ -255,6 +255,47 @@
   cursor: pointer;
 }
 
+/* Ensure the grid item handles positioning for the overlay */
+.grid-item {
+    position: relative;
+    width: 100%;
+    padding-bottom: 100%; /* Creates a perfect square aspect ratio */
+    overflow: hidden;
+    background-color: #f0f0f0; /* Placeholder color while loading */
+}
+
+/* This class applies to both <img> and <video> */
+.grid-media {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* This makes the video/image fill the square */
+    display: block;
+}
+
+/* Container specifically for video to handle the overlay */
+.video-thumbnail-container {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+/* The Play Icon Overlay */
+.video-icon-overlay {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    color: white;
+    font-size: 1.2rem;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    z-index: 2;
+    pointer-events: none; /* Let clicks pass through to the link */
+}
+
 .grid-item img {
   position: absolute;
   top: 0;

@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faXmarkCircle, faBookmark, faComment, faHeart, faXmark, faListDots } from '@fortawesome/free-solid-svg-icons';// Using regular for outline style
+import { faXmarkCircle, faBookmark, faComment, faHeart, faXmark, faListDots, faPlay } from '@fortawesome/free-solid-svg-icons';// Using regular for outline style
 import { faHeart as faHeartSolid } from '@fortawesome/free-solid-svg-icons'; // Solid for liked state
 
 import type { CommentApiType, CommentPostDTO, PostType } from '../assets/types';
@@ -15,12 +15,18 @@ interface PostProps {
 const Post = memo(({ post, onToggleLike }: PostProps) => {
     const navigate = useNavigate();
     const myusername = sessionStorage.getItem("userName");
+
     const myRole = sessionStorage.getItem("userRole");
 
     const [isLiked, setIsLiked] = useState<boolean>(post.has_liked);
     const [showComments, setShowComments] = useState<boolean>(false);
     const [displayComments, setDisplayComments] = useState<CommentApiType[]>([]);
     const [inputCommentValue, setInputCommentValue] = useState<string>("");
+
+
+    const [isPlaying, setIsPlaying] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
+
 
     const debounceTimer = useRef<number | null>(null);
     const pendingSave = useRef<{ id: number, state: boolean } | null>(null);
@@ -38,7 +44,24 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
         };
     }, [onToggleLike]);
 
+    const togglePlay = () => {
+        if (!videoRef.current) return;
+
+        if (isPlaying) {
+            videoRef.current.pause();
+            setIsPlaying(false);
+        } else {
+            videoRef.current.play();
+            setIsPlaying(true);
+        }
+    };
+
     const handleLike = () => {
+        if ( myRole === "Guest" ){
+            alert("You must be signed in to interact with posts");
+            return;
+        }
+
         const newLikeState = !isLiked;
         setIsLiked(newLikeState);
         pendingSave.current = { id: post.id, state: newLikeState };
@@ -66,6 +89,12 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
     };
 
     const handlePostComment = async () => {
+        if ( myRole === "Guest" ){
+            alert("You must be signed in to interact with posts");
+            return;
+        }
+
+
         const token = sessionStorage.getItem("userToken");
         const commentPayload: CommentPostDTO = { postId: post.id, content: inputCommentValue };
         try {
@@ -99,6 +128,12 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
     }
 
     const handleDeleteComment = (comment_id: number) => {
+        if ( myRole === "Guest" ){
+            alert("You must be signed in to interact with posts");
+            return;
+        }
+
+
         const token = sessionStorage.getItem("userToken");
         fetch(`/api/Comments/${comment_id}`, { method: "DELETE", headers: { 'Authorization': `Bearer ${token}` } });
         setDisplayComments(prev => prev.filter(c => c.id !== comment_id));
@@ -106,14 +141,17 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
 
     const handleDeletePost = (post_id: number ) => {
         const token = sessionStorage.getItem("userToken");
-        fetch(`/api/Posts/delete/${post_id}`, {
+        fetch(`/api/Posts/${post_id}`, {
             method: "DELETE",
             headers: { 'Authorization': `Bearer ${token}` }
         })
         .then(res => {
             if (!res.ok){
                 console.error("Cant delete post: ", res.status, res.statusText);
+                return;
             }
+
+
         });
     }
 
@@ -158,11 +196,11 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
                 </div>
                 {/* Bookmark pushed to top right */}
 
-                {canEdit && 
+                {/* {canEdit && 
                 (<button className="icon-btn delete-btn"
                 onClick={() => handleDeletePost(post.id)}>
                     <FontAwesomeIcon icon={faXmark} />
-                </button>)}
+                </button>)} */}
             </header>
 
             {/* 2. Content Text (Moved ABOVE Image) */}
@@ -171,20 +209,36 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
             </div>
 
             {/* 3. Media */}
-            <div className="post-media" onDoubleClick={handleLike}>
+            { post.img_path &&
+            (<div className="post-media" onDoubleClick={handleLike}>
                 {isVideo(post.img_path) ? (
-                    <video 
-                        src={post.img_path} 
-                        controls 
-                        muted 
-                        loop 
-                        playsInline
-                        className="post-video" // specific class for styling
-                    />
+                    <div className="video-wrapper" onClick={togglePlay}>
+                        <video 
+                            ref={videoRef}
+                            src={post.img_path} 
+                            loop 
+                            playsInline
+                            // Removing 'controls' makes it look cleaner (like Instagram)
+                            // If you want the scrubber bar, add 'controls' back
+                            className="post-video" 
+                        />
+                        
+                        {/* Overlay Icon: Shows Play when paused, Pause animation when playing (optional) */}
+                        {!isPlaying && (
+                            <div className="video-overlay">
+                                <FontAwesomeIcon icon={faPlay} />
+                            </div>
+                        )}
+                        
+                        {/* Optional: If you want a pause icon to flash briefly when pausing, 
+                            that requires more complex animation state. 
+                            Standard UI is: Show Play icon when Paused. Hide all icons when Playing. 
+                        */}
+                    </div>
                 ) : (
                     <img src={post.img_path} alt="Post content" />
                 )}
-            </div>
+            </div>)}
 
             {/* 4. Footer: Action Bar (Icons + Counts) */}
             <div className="post-footer">

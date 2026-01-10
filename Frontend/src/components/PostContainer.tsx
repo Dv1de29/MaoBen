@@ -30,19 +30,24 @@ function PostContainer(){
     const [initialLoading, setInitialLoading] = useState<boolean>(true);
     const [hasMore, setHasMore] = useState<boolean>(true);
 
+    const isGeust = sessionStorage.getItem("userRole") === "Guest";
+
     const observerTargetRef = useRef<HTMLDivElement>(null);
     const initialLoadRef = useRef(true);
 
+    console.log(isGeust)
+
     const fetchMyPosts = useCallback(async () => {
+        console.log("Entered fetched posts")
         if (loading || !hasMore) return;
         setLoading(true);
 
         const skipValue = (page - 1) * ITEMS_PER_PAGE;
 
         const token = sessionStorage.getItem("userToken");
-
+// ${isGeust ? "" : "/feed"}
         try{
-            const res = await fetch(`/api/posts/?count=${ITEMS_PER_PAGE}&skip=${skipValue}`, {
+            const res = await fetch(`/api/Posts${isGeust ? "" : "/feed"}?count=${ITEMS_PER_PAGE}&skip=${skipValue}`, {
                 headers:{
                     'Authorization': `Bearer ${token}`
                 }
@@ -94,7 +99,7 @@ function PostContainer(){
 
     //fetching first set
     useEffect(() => {
-        if ( initialLoadRef.current){
+        if ( initialLoadRef.current ){
             initialLoadRef.current = false;
             fetchMyPosts();
         }
