@@ -1,7 +1,7 @@
 ﻿using Backend.Data;
-using Backend.DTOs;
+using Backend.DTOs.CommentsController;
 using Backend.Models;
-using Backend.Services; // Import pentru AI Service
+using Backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,11 +11,10 @@ namespace Backend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize] // Garanteaza ca utilizatorul este logat/inregistrat
     public class CommentsController : ControllerBase
     {
         private readonly AppDbContext _context;
-        private readonly IAiContentService _aiService; // Injectare serviciu AI
+        private readonly IAiContentService _aiService;
 
         public CommentsController(AppDbContext context, IAiContentService aiService)
         {
@@ -23,77 +22,72 @@ namespace Backend.Controllers
             _aiService = aiService;
         }
 
+        [Authorize]
         [HttpPost]
         public async Task<IActionResult> AddComment([FromBody] AddCommentDto dto)
         {
             if (dto == null || string.IsNullOrWhiteSpace(dto.Content))
             {
-                return BadRequest("Comentariul nu poate fi gol.");
+                return BadRequest("Comment content cannot be empty.");
             }
-
             if (dto.Content.Length > 500)
             {
-                return BadRequest("Comentariul nu poate depași 500 de caractere.");
+                return BadRequest("Comment content cannot exceed 500 characters.");
             }
 
-            // --- VALIDARE AI: Google Gemini ---
             bool isSafe = await _aiService.IsContentSafeAsync(dto.Content);
             if (!isSafe)
             {
-                return BadRequest("Comentariul tău conține termeni nepotriviți (insulte, hate speech, etc.). Te rugăm să reformulezi.");
+                return BadRequest("Your comment contains inappropriate terms (insults, hate speech, etc.). Please reformulate.");
             }
-            // ----------------------------------
 
-            // --- VALIDARE 1: User Authentication ---
             var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var currentUserRole = User.FindFirstValue(ClaimTypes.Role);
             if (string.IsNullOrEmpty(currentUserId))
             {
-                return Unauthorized("Nu ești autentificat.");
+                return Unauthorized("You are not authenticated.");
             }
 
-            // --- VALIDARE 2: Post Exists ---
             var post = await _context.Posts
                 .Include(p => p.User)
                 .FirstOrDefaultAsync(p => p.Id == dto.PostId);
 
             if (post == null)
             {
-                return NotFound("Postarea nu a fost găsită.");
+                return NotFound("The post was not found.");
             }
 
-            // --- VALIDARE 3: Visibility Check (Can user view/comment on post?) ---
             bool canComment = false;
 
-            // Case A: Own Post - Always allowed
             if (post.User.Id == currentUserId)
             {
                 canComment = true;
             }
-            // Case B: Public Profile - Anyone logged in can comment
-            else if (!post.User.Privacy)
+            else if (!post.User.IsPrivate)
             {
                 canComment = true;
             }
-            // Case C: Private Profile - Only accepted followers can comment
+            //Admins can comment to any posts
+            else if (currentUserRole == "Admin")
+            {
+                canComment = true;
+            }    
             else
             {
                 var isAcceptedFollower = await _context.UserFollows
                     .AnyAsync(f => f.SourceUserId == currentUserId &&
                                    f.TargetUserId == post.User.Id &&
                                    f.Status == FollowStatus.Accepted);
-
                 if (isAcceptedFollower)
                 {
                     canComment = true;
                 }
             }
-
             if (!canComment)
             {
-                return StatusCode(403, "Nu ai permisiunea de a comenta la această postare. Profilul utilizatorului este privat.");
+                return StatusCode(403, "You do not have permission to comment on this post. The user profile is private.");
             }
 
-            // --- ACTION: Add Comment ---
             var comment = new Comment
             {
                 PostId = dto.PostId,
@@ -104,12 +98,10 @@ namespace Backend.Controllers
 
             _context.Comments.Add(comment);
 
-            // --- Update Post Comment Count ---
             post.Nr_Comms++;
 
             await _context.SaveChangesAsync();
 
-            // Returnăm detalii complete pentru UI (inclusiv poza și numele celui care a comentat)
             var userDetails = await _context.Users
                 .Where(u => u.Id == currentUserId)
                 .Select(u => new
@@ -118,7 +110,8 @@ namespace Backend.Controllers
                     u.ProfilePictureUrl
                 })
                 .FirstOrDefaultAsync();
-
+            
+            //Maybe add a response DTO in the future
             return CreatedAtAction(nameof(AddComment), new { id = comment.Id }, new
             {
                 id = comment.Id,
@@ -128,18 +121,17 @@ namespace Backend.Controllers
                 createdAt = comment.CreatedAt,
                 username = userDetails?.UserName,
                 profilePictureUrl = userDetails?.ProfilePictureUrl,
-                message = "Comentariu adăugat cu succes!"
+                message = "Comment added successfully!"
             });
         }
 
-        // GET: api/Comments/{postId}
         [HttpGet("{postId}")]
         public async Task<IActionResult> GetComments(int postId)
         {
             var comments = await _context.Comments
-                .Include(c => c.User) // Aducem datele userului pentru a afișa poza și numele
+                .Include(c => c.User)
                 .Where(c => c.PostId == postId)
-                .OrderByDescending(c => c.CreatedAt) // Cele mai noi primele
+                .OrderByDescending(c => c.CreatedAt)
                 .Select(c => new
                 {
                     c.Id,
@@ -147,42 +139,35 @@ namespace Backend.Controllers
                     c.CreatedAt,
                     Username = c.User.UserName,
                     ProfilePictureUrl = c.User.ProfilePictureUrl,
-                    UserId = c.UserId // Util pentru a ști dacă e comentariul meu
+                    UserId = c.UserId
                 })
                 .ToListAsync();
 
             return Ok(comments);
         }
-
-        // DELETE: api/Comments/{commentId}
+        [Authorize]
         [HttpDelete("{commentId}")]
         public async Task<IActionResult> DeleteComment(int commentId)
         {
             var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             var comment = await _context.Comments
-                .Include(c => c.Post) // Avem nevoie de post pt a vedea cine e proprietarul postării
+                .Include(c => c.Post)
                 .FirstOrDefaultAsync(c => c.Id == commentId);
 
-            if (comment == null) return NotFound("Comentariul nu există.");
-
-            // Cine are voie să șteargă?
-            // 1. Autorul comentariului
-            // 2. Proprietarul postării
-            // 3. Adminul
+            if (comment == null) return NotFound("The comment does not exist.");
 
             bool isAuthor = comment.UserId == currentUserId;
             bool isPostOwner = comment.Post.OwnerID == currentUserId;
-            bool isAdmin = User.IsInRole("Admin") || User.IsInRole("Administrator");
+            bool isAdmin = User.IsInRole("Admin");
 
             if (!isAuthor && !isPostOwner && !isAdmin)
             {
-                return StatusCode(403, "Nu ai dreptul să ștergi acest comentariu.");
+                return StatusCode(403, "You do not have the right to delete this comment.");
             }
 
             _context.Comments.Remove(comment);
 
-            // Scădem contorul de comentarii din postare
             if (comment.Post.Nr_Comms > 0)
             {
                 comment.Post.Nr_Comms--;
@@ -190,7 +175,7 @@ namespace Backend.Controllers
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Comentariul a fost șters." });
+            return Ok(new { message = "The comment has been deleted." });
         }
     }
 }

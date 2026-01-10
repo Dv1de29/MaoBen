@@ -1,11 +1,13 @@
 ﻿using Backend.Data;
 using Backend.DTOs;
-using Backend.DTOs.GroupController;
+using Backend.DTOs.GroupController; 
 using Backend.Models;
-using Backend.Services; // Import pentru AI Service
+using Backend.Services; 
+using Backend.Hubs;     
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
@@ -18,13 +20,20 @@ namespace Backend.Controllers
     {
         private readonly AppDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly IAiContentService _aiService; // Injectare serviciu AI
+        private readonly IAiContentService _aiService;
+        private readonly IHubContext<ChatHub> _hubContext;
 
-        public GroupsController(AppDbContext context, UserManager<ApplicationUser> userManager, IAiContentService aiService)
+        // Injectăm IHubContext în constructor
+        public GroupsController(
+            AppDbContext context,
+            UserManager<ApplicationUser> userManager,
+            IAiContentService aiService,
+            IHubContext<ChatHub> hubContext) // <--- PARAMETRU NOU
         {
             _context = context;
             _userManager = userManager;
             _aiService = aiService;
+            _hubContext = hubContext; // <--- ATRIBUIRE
         }
 
         // POST: api/Groups (Creare Grup)
@@ -236,6 +245,7 @@ namespace Backend.Controllers
         }
 
         // POST: api/Groups/{id}/messages
+        // MODIFICAT PENTRU SIGNALR
         [HttpPost("{id}/messages")]
         public async Task<IActionResult> SendMessage(int id, [FromBody] SendMessageDto dto)
         {
@@ -245,11 +255,12 @@ namespace Backend.Controllers
             bool isSafe = await _aiService.IsContentSafeAsync(dto.Content);
             if (!isSafe)
             {
-                return BadRequest("Mesajul tău conține termeni nepotriviți.");
+                return BadRequest("Mesajul tău conține termeni nepotriviți (insulte, hate speech).");
             }
             // --------------------------------
 
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var currentUser = await _userManager.FindByIdAsync(currentUserId!); // Avem nevoie de user pentru poze/nume
 
             var isMember = await _context.GroupMembers
                 .AnyAsync(gm => gm.GroupId == id && gm.UserId == currentUserId && gm.Status == GroupMemberStatus.Accepted);
@@ -266,6 +277,21 @@ namespace Backend.Controllers
 
             _context.GroupMessages.Add(message);
             await _context.SaveChangesAsync();
+
+            // --- REAL-TIME: SIGNALR BROADCAST ---
+            // Trimitem mesajul prin socket către toți cei din grupul respectiv
+            var messageDto = new GroupMessageDto
+            {
+                Id = message.Id,
+                Content = message.Content,
+                CreatedAt = message.CreatedAt,
+                Username = currentUser.UserName,
+                ProfilePictureUrl = currentUser.ProfilePictureUrl,
+                IsMine = false // Frontend-ul va verifica dacă e mesajul propriu
+            };
+
+            // Notificăm grupul SignalR corespunzător ID-ului grupului din baza de date
+            await _hubContext.Clients.Group(id.ToString()).SendAsync("ReceiveGroupMessage", messageDto);
 
             return Ok(new { message = "Mesaj trimis." });
         }

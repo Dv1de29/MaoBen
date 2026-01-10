@@ -14,6 +14,27 @@ namespace Backend.Seed
             var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
+
+            var adminEmail = "admin@micro.social";
+            if (await userManager.FindByEmailAsync(adminEmail) == null)
+            {
+                var adminUser = new ApplicationUser
+                {
+                    FirstName = "Sistem",
+                    LastName = "Admin",
+                    UserName = "admin_master",
+                    Email = adminEmail,
+                    EmailConfirmed = true,
+                    Description = "Cont de administrare pentru gestionarea conținutului platformei.",
+                    ProfilePictureUrl = "be_assets/img/admin_default.jpg" 
+                };
+
+                var createAdminResult = await userManager.CreateAsync(adminUser, "Admin123!");
+                if (createAdminResult.Succeeded)
+                {
+                    await userManager.AddToRoleAsync(adminUser, "Admin"); // Atribuire rol Admin 
+                }
+            }
             string[] roleNames = { "Admin", "User" };
             foreach (var roleName in roleNames)
             {
@@ -36,6 +57,8 @@ namespace Backend.Seed
                 new UserSeedData("Elena", "Gheorghe", "elena.g", "elena.g@example.com", "SecurePwd4!", "be_assets/img/ben1.jpg"),
                 new UserSeedData("Radu", "Dumitru", "radu.d", "radu.d@example.com", "SecurePwd5!", "be_assets/img/ben1.jpg"),
             };
+
+           
 
             foreach (var seedUser in usersToSeed)
             {

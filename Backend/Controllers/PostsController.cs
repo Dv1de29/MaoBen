@@ -1,13 +1,10 @@
 ﻿using Backend.Data;
 using Backend.DTOs;
 using Backend.Models;
-using Backend.Services; // Import pentru AI Service
+using Backend.Services;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using System.Security.Claims;
 
 namespace Backend.Controllers
@@ -19,7 +16,7 @@ namespace Backend.Controllers
         private readonly AppDbContext _context;
         private readonly int MaxPostsLimit = 50;
         private readonly IWebHostEnvironment _webHostEnvironment;
-        private readonly IAiContentService _aiService; // Injectare serviciu AI
+        private readonly IAiContentService _aiService;
 
         public PostsController(AppDbContext context, IWebHostEnvironment webHostEnvironment, IAiContentService aiService)
         {
@@ -112,7 +109,7 @@ namespace Backend.Controllers
                 .ToListAsync();
 
             // 2. Adăugăm și ID-ul nostru
-            followingIds.Add(currentUserId!);
+            //followingIds.Add(currentUserId!);
 
             // 3. Luăm postările
             var posts = await _context.Posts
@@ -188,7 +185,7 @@ namespace Backend.Controllers
 
             // --- LOGICA DE PRIVACY ---
             bool canView = false;
-            if (!targetUser.Privacy) canView = true;
+            if (!targetUser.IsPrivate) canView = true;
             else if (targetUser.Id == currentUserId) canView = true;
             else
             {
