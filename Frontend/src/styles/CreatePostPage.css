@@ -36,11 +36,19 @@
     cursor: pointer;
     overflow: hidden;
     position: relative;
+    object-fit: contain;
     transition: border-color 0.2s;
 }
 
 .image-upload-area:hover {
     border-color: #777;
+}
+
+.preview-media{
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    place-content: center;
 }
 
 .post-preview-img {

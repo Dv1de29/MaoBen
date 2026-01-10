@@ -17,22 +17,28 @@ import GroupsPage from './pages/GroupsPage';
 import PostPage from './pages/PostPage';
 
 import PostModal from './components/PostModal';
+import ProtectedRoute from './components/ProtectedRotes';
+
+import EditPostPage from './pages/EditPost';
 
 
 function Layout(){
     const navigate = useNavigate();
     const location = useLocation();
-
+    
+    
     const isLogin = location.pathname === '/login' || location.pathname === '/register';
-
+    
     const background = location.state && location.state.background;
-
+    
+    const isGuest = sessionStorage.getItem("userRole") === "Guest";
 
     useEffect(() => {
-        if ( !sessionStorage.getItem("userToken") && !isLogin ){
+        if ( !isLogin && !isGuest && !sessionStorage.getItem("userToken") ){
             navigate("/login");
         }
     }, [location.pathname])
+
 
 
 
@@ -44,21 +50,39 @@ function Layout(){
                 <main className={`app-main ${isLogin ? "no-nav" : ""}`}>
                     <Routes location={background || location}>
                         <Route path='/' element={<HomePage />} />
+                        
                         <Route path='/login' element={<LoginPage />} />
                         <Route path='/register' element={<RegisterPage />} />
 
-                        <Route path='/profile' element={<ProfilePage />} />
-                        <Route path='/profile/edit' element={<EditProfilePage />} />
+                        <Route path='/profile' element={
+                            // <ProfilePage />
+                            <ProtectedRoute children={< ProfilePage/>}/>
+                        } />
+                        <Route path='/profile/edit' element={
+                            // <EditProfilePage />
+                            <ProtectedRoute children={<EditProfilePage />}/>
+                        } />
                         <Route path='/profile/:usernamePath' element={<ProfilePage />} />
 
-                        <Route path='/create_post' element={<CreatePostPage />} />
+                        <Route path='/create_post' element={
+                            // <CreatePostPage />
+                            <ProtectedRoute children={<CreatePostPage />}/>
+                        } />
 
-                        <Route path='/direct' element={<ChatPage />}/>
+                        <Route path='/direct' element={
+                            // <ChatPage />
+                            <ProtectedRoute children={<ChatPage />}/>
+                        }/>
 
                         <Route path='/groups' element={<GroupsPage />}/>
 
                         {/* FALLBACK WHEN I REFRESH WITH PAGE */}
                         <Route path='/p/:post_id' element={<PostPage />}/>
+
+                        <Route path='/p/edit/:post_id' element={
+                            // <EditPostPage />
+                            <ProtectedRoute children={<EditPostPage />}/>
+                        } />
 
 
                         {/* NOT FOUND ROUTE */}

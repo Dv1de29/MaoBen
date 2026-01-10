@@ -1,7 +1,7 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faXmarkCircle, faBookmark, faComment, faHeart } from '@fortawesome/free-solid-svg-icons';// Using regular for outline style
+import { faXmarkCircle, faBookmark, faComment, faHeart, faXmark, faListDots } from '@fortawesome/free-solid-svg-icons';// Using regular for outline style
 import { faHeart as faHeartSolid } from '@fortawesome/free-solid-svg-icons'; // Solid for liked state
 
 import type { CommentApiType, CommentPostDTO, PostType } from '../assets/types';
@@ -15,6 +15,7 @@ interface PostProps {
 const Post = memo(({ post, onToggleLike }: PostProps) => {
     const navigate = useNavigate();
     const myusername = sessionStorage.getItem("userName");
+    const myRole = sessionStorage.getItem("userRole");
 
     const [isLiked, setIsLiked] = useState<boolean>(post.has_liked);
     const [showComments, setShowComments] = useState<boolean>(false);
@@ -24,7 +25,7 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
     const debounceTimer = useRef<number | null>(null);
     const pendingSave = useRef<{ id: number, state: boolean } | null>(null);
 
-    // --- Logic Section (Unchanged) ---
+
     useEffect(() => {
         return () => {
             if (debounceTimer.current) {
@@ -103,6 +104,35 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
         setDisplayComments(prev => prev.filter(c => c.id !== comment_id));
     };
 
+    const handleDeletePost = (post_id: number ) => {
+        const token = sessionStorage.getItem("userToken");
+        fetch(`/api/Posts/delete/${post_id}`, {
+            method: "DELETE",
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(res => {
+            if (!res.ok){
+                console.error("Cant delete post: ", res.status, res.statusText);
+            }
+        });
+    }
+
+    const handleEditPost = (post_id: number) => {
+        navigate(`/p/edit/${post_id}`, {state: {postData: post}});
+    }
+
+    const canEdit = useMemo(() => {
+        return myusername === post.username || myRole === "Admin";
+    }, [myusername, post, myRole])
+
+
+
+    const isVideo = (url: string) => {
+        return /\.(mp4|webm|ogg|mov)$/i.test(url);
+    }
+
+    // console.log(post);
+
     // --- Render Section ---
     return (
         <article className="post-container">
@@ -127,9 +157,12 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
                     </div>
                 </div>
                 {/* Bookmark pushed to top right */}
-                {/* <button className="icon-btn bookmark-btn">
-                    <FontAwesomeIcon icon={faBookmark} />
-                </button> */}
+
+                {canEdit && 
+                (<button className="icon-btn delete-btn"
+                onClick={() => handleDeletePost(post.id)}>
+                    <FontAwesomeIcon icon={faXmark} />
+                </button>)}
             </header>
 
             {/* 2. Content Text (Moved ABOVE Image) */}
@@ -139,7 +172,18 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
 
             {/* 3. Media */}
             <div className="post-media" onDoubleClick={handleLike}>
-                <img src={post.img_path} alt="Post content" />
+                {isVideo(post.img_path) ? (
+                    <video 
+                        src={post.img_path} 
+                        controls 
+                        muted 
+                        loop 
+                        playsInline
+                        className="post-video" // specific class for styling
+                    />
+                ) : (
+                    <img src={post.img_path} alt="Post content" />
+                )}
             </div>
 
             {/* 4. Footer: Action Bar (Icons + Counts) */}
@@ -157,6 +201,10 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
                             <span className="action-count">{post.nr_comm}</span>
                         </button>
                     </div>
+                    { canEdit &&
+                    (<div className="action-right" onClick={() => handleEditPost(post.id)}>
+                        <FontAwesomeIcon icon={faListDots} />
+                    </div>)}
 
                 </div>
 
@@ -170,7 +218,7 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
                                     <span className="comment-user" onClick={() => navigate(`/profile/${comment.username}`)}>{comment.username}</span>
                                 </div>
                                 <span className="comment-text">{comment.content}</span>
-                                {(myusername === comment.username || myusername === post.username) && (
+                                {(myusername === comment.username || canEdit) && (
                                     <div className='delete-comment-icon' onClick={() => handleDeleteComment(comment.id)}>
                                         <FontAwesomeIcon icon={faXmarkCircle} />
                                     </div>

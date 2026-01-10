@@ -163,6 +163,12 @@
     font-size: 0.9rem;
     font-weight: 500;
 }
+
+.action-right{
+    margin-left: auto;
+    margin-right: 10px;
+}
+
 /* --- 6. Comments Section Styles --- */
 
 /* The Drawer Container */
@@ -311,4 +317,14 @@
 
 .post-text-btn:hover {
     opacity: 0.8;
+}
+
+.icon-btn.delete-btn{
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background-color: #ef4444;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }

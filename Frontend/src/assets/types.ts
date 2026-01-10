@@ -90,3 +90,25 @@ export interface CommentPostDTO{
     postId: number,
     content: string
 }
+
+
+
+
+
+
+export interface ConversationType{
+    id: number,
+    username: string,
+    img_path: string,
+    lastMessage: string,
+    timeAgo: string,
+    unreadCount: number,
+}
+
+export interface MessageType{
+    id: number,
+    content: string,
+    time: string,
+    sender_username: string,
+    sender_img_path: string,
+}

@@ -170,6 +170,8 @@ const EditProfilePage = () => {
                     throw new Error(`Fetching error: ${res.status}, ${res.statusText}`);
                 }
 
+                console.log(res)
+
                 await refreshUser();
 
                 navigate(-1); 

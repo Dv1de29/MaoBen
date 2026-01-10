@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { type ChangeEvent, type FormEvent } from 'react';
 
 import { Link, useNavigate } from 'react-router-dom';
@@ -24,7 +24,12 @@ function LoginPage() {
 
     const [error, setError] = useState("");
 
-    const [showPass, setShowPass] = useState(false)
+    const [showPass, setShowPass] = useState(false);
+
+
+    useEffect(() => {
+        sessionStorage.clear();
+    }, []);
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -73,6 +78,12 @@ function LoginPage() {
 
         fetchLog();
     };
+
+    const tryGuest = () => {
+        if ( !sessionStorage.getItem("userRole") ){
+            sessionStorage.setItem("userRole", "Guest");
+        }
+    }
 
     return (
         <div className="login-page">
@@ -124,7 +135,9 @@ function LoginPage() {
 
                 <div className="login-footer">
                     <p>Don't have an account? <Link to="/register">Sign up</Link></p>
+                    <p>Try as guest! <Link to={"/"} onClick={tryGuest}>Guest</Link></p>
                 </div>
+                
             </div>
             
             <footer className="app-footer">
