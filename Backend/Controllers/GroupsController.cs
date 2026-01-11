@@ -103,9 +103,8 @@ namespace Backend.Controllers
 
             if (group == null) return NotFound(new { error = "Group not found." });
 
-            bool isAdmin = User.IsInRole("Admin");
 
-            if (group.OwnerId != currentUserId && !isAdmin)
+            if (group.OwnerId != currentUserId)
                 return StatusCode(403, new { error = "Only the moderator or an administrator can delete the group." });
 
             _context.Groups.Remove(group);
@@ -153,7 +152,7 @@ namespace Backend.Controllers
             var group = await _context.Groups.FindAsync(id);
 
             if (group == null) return NotFound(new { error = "Group not found." });
-            if (group.OwnerId != currentUserId || User.IsInRole("Admin")) return StatusCode(403, new { error = "You are not the moderator of this group." });
+            if (group.OwnerId != currentUserId) return StatusCode(403, new { error = "You are not the moderator of this group." });
 
             var requests = await _context.GroupMembers
                 .Where(gm => gm.GroupId == id && gm.Status == GroupMemberStatus.Pending)
@@ -180,10 +179,9 @@ namespace Backend.Controllers
             if (group == null)
                 return NotFound(new { error = "Group not found." });
 
-            bool isAdmin = User.IsInRole("Admin");
             bool isModerator = group.OwnerId == currentUserId;
 
-            if (!isModerator && !isAdmin)
+            if (!isModerator)
             {
                 return StatusCode(403, new { error = "Only the group moderator or an administrator can accept members." });
             }
@@ -226,11 +224,10 @@ namespace Backend.Controllers
             if (memberToRemove == null)
                 return NotFound(new { error = "This user is not a member of this group." });
 
-            bool isAdmin = User.IsInRole("Admin");
             bool isGroupModerator = group.OwnerId == currentUserId;
             bool isSelf = targetUser.Id == currentUserId;
 
-            if (!isSelf && !isGroupModerator && !isAdmin)
+            if (!isSelf && !isGroupModerator)
             {
                 return StatusCode(403, new { error = "You do not have permission to remove this member." });
             }
@@ -335,7 +332,7 @@ namespace Backend.Controllers
             if (group == null)
                 return NotFound(new { error = "Group not found." });
 
-            if (message.UserId != currentUserId && !User.IsInRole("Admin") && group.OwnerId != currentUserId)
+            if (message.UserId != currentUserId && group.OwnerId != currentUserId)
                 return StatusCode(403, new { error = "You can only delete your own messages unless you are an administrator." });
 
             _context.GroupMessages.Remove(message);
@@ -367,8 +364,8 @@ namespace Backend.Controllers
             if (group == null)
                 return NotFound(new { error = "Group not found." });
 
-            if (message.UserId != currentUserId && !User.IsInRole("Admin") && group.OwnerId != currentUserId)
-                return StatusCode(403, new { error = "You can only delete your own messages unless you are an administrator." });
+            if (message.UserId != currentUserId && group.OwnerId != currentUserId)
+                return StatusCode(403, new { error = "You can only edit your own messages unless you are an administrator." });
 
             message.Content = dto.Content.Trim();
             _context.GroupMessages.Update(message);
