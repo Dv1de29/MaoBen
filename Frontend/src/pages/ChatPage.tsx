@@ -4,7 +4,7 @@ import { HubConnection, HubConnectionBuilder, LogLevel } from "@microsoft/signal
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
     faMagnifyingGlass, faPhone, faVideo, faEllipsisVertical, 
-    faPaperclip, faImage, faPaperPlane, faFaceSmile, faUsers 
+    faPaperclip, faImage, faPaperPlane, faFaceSmile, faUsers, faPlus, faTimes, faTrash 
 } from "@fortawesome/free-solid-svg-icons";
 
 import '../styles/ChatPage.css';
@@ -52,6 +52,7 @@ interface ChatSession {
     timestamp: string;
     type: ChatType;
     unreadCount: number;
+    ownerUsername?: string;
 }
 
 function ChatPage() {
@@ -64,9 +65,25 @@ function ChatPage() {
     const [inputText, setInputText] = useState("");
     const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
+    const [currentUsername, setCurrentUsername] = useState<string>("");
+    const [isAdmin, setIsAdmin] = useState<boolean>(false);
+
+
+    const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+    const [newGroupName, setNewGroupName] = useState("");
+    const [newGroupDesc, setNewGroupDesc] = useState("");
+    const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+
     // Refs
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const connectionRef = useRef<HubConnection | null>(null);
+
+    useEffect(() => {
+        const adminRole = sessionStorage.getItem("userRole") === "Admin";
+        const username: string = sessionStorage.getItem("userName") || "";
+        setCurrentUsername(username);
+        setIsAdmin(adminRole);
+    }, []);
 
     // --- 1. Fetch ALL Chats (Conversations + Groups) ---
     useEffect(() => {
@@ -113,7 +130,8 @@ function ChatPage() {
                         lastMessage: "Group Chat", // You might want to fetch last message for groups too
                         timestamp: new Date().toISOString(), // Placeholder if API doesn't send time
                         type: 'group',
-                        unreadCount: 0
+                        unreadCount: 0,
+                        ownerUsername: g.ownerUsername,
                     }));
                     unifiedList = [...unifiedList, ...groups];
                 }
@@ -337,6 +355,90 @@ function ChatPage() {
         if (e.key === 'Enter') handleSendMessage();
     };
 
+    const handlePlusSignPress = () => {
+        setIsGroupModalOpen(true);
+    };
+
+    const handleCreateGroup = async () => {
+        if (!newGroupName.trim() || !newGroupDesc.trim()) {
+            alert("Name and description are required.");
+            return;
+        }
+
+        setIsCreatingGroup(true);
+        const token = sessionStorage.getItem("userToken");
+
+        try {
+            const res = await fetch('/api/Groups', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: newGroupName,
+                    description: newGroupDesc
+                })
+            });
+
+            if (!res.ok) throw new Error("Failed to create group");
+            
+            const data = await res.json(); // Usually returns { message, groupId }
+
+            // Create a temp chat object to add to the list immediately
+            const newGroupChat: ChatSession = {
+                id: data.groupId,
+                displayId: data.groupId,
+                name: newGroupName,
+                avatarUrl: "",
+                lastMessage: "Group created",
+                timestamp: new Date().toISOString(),
+                type: 'group',
+                unreadCount: 0
+            };
+
+            // Add to top of list and close modal
+            setChatList(prev => [newGroupChat, ...prev]);
+            setActiveChat(newGroupChat);
+            setIsGroupModalOpen(false);
+            
+            // Reset form
+            setNewGroupName("");
+            setNewGroupDesc("");
+
+        } catch (e) {
+            console.error(e);
+            alert("Error creating group");
+        } finally {
+            setIsCreatingGroup(false);
+        }
+    };
+
+    const handleDeleteGroup = async (e: React.MouseEvent, groupId: number) => {
+        e.stopPropagation(); // Prevent opening the chat when clicking delete
+        
+        if (!window.confirm("Are you sure you want to delete this group? This cannot be undone.")) return;
+
+        const token = sessionStorage.getItem("userToken");
+        try {
+            const res = await fetch(`/api/Groups/${groupId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                // Remove from UI immediately
+                setChatList(prev => prev.filter(c => !(c.type === 'group' && c.id === groupId)));
+                if (activeChat?.id === groupId) setActiveChat(null);
+            } else {
+                const err = await res.json();
+                alert(err.error || "Failed to delete group");
+            }
+        } catch (error) {
+            console.error("Delete error", error);
+        }
+    };
+
 
     // --- RENDER ---
     return (
@@ -377,9 +479,24 @@ function ChatPage() {
                                     {chat.unreadCount > 0 && <span className="unread-badge">{chat.unreadCount}</span>}
                                 </div>
                             </div>
+                            {chat.type === 'group' && (currentUsername === chat.ownerUsername || isAdmin) && (
+                                <button 
+                                    className="delete-chat-btn"
+                                    onClick={(e) => handleDeleteGroup(e, chat.id as number)}
+                                    title="Delete Group"
+                                >
+                                    <FontAwesomeIcon icon={faTrash} />
+                                </button>
+                            )}
                         </div>
                     ))}
                 </div>
+                <button 
+                    className="new-chat-floating-btn"
+                    onClick={() => handlePlusSignPress()}
+                >
+                    <FontAwesomeIcon icon={faPlus} />
+                </button>
             </aside>
 
             <main className="chat-window">
@@ -453,6 +570,54 @@ function ChatPage() {
                     <div className="no-chat-selected">Select a conversation</div>
                 )}
             </main>
+
+            {/* --- MODAL OVERLAY --- */}
+            {isGroupModalOpen && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h3>Create New Group</h3>
+                            <button className="close-btn" onClick={() => setIsGroupModalOpen(false)}>
+                                <FontAwesomeIcon icon={faTimes} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="form-group">
+                                <label>Group Name</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Ex: Weekend Trip" 
+                                    value={newGroupName}
+                                    onChange={e => setNewGroupName(e.target.value)}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Description</label>
+                                <textarea 
+                                    placeholder="What is this group about?" 
+                                    value={newGroupDesc}
+                                    onChange={e => setNewGroupDesc(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button 
+                                className="cancel-btn" 
+                                onClick={() => setIsGroupModalOpen(false)}
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                className="create-btn" 
+                                onClick={handleCreateGroup}
+                                disabled={isCreatingGroup}
+                            >
+                                {isCreatingGroup ? "Creating..." : "Create Group"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
