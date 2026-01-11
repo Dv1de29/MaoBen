@@ -112,18 +112,6 @@ builder.Services.AddSwaggerGen(option =>
     });
 });
 
-
-builder.Services.AddCors(option =>
-{
-    option.AddPolicy("ReactPolicy", policy =>
-    {
-        policy.WithOrigins("http://localhost:5173")
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
-    });
-});
-
 // ==========================================
 
 var app = builder.Build();

@@ -74,7 +74,7 @@ namespace Backend.Controllers
             if (sender == null) return Unauthorized();
 
             // --- Prepare DTO ---
-            var messageDto = new DirectMessageDto
+            var messageDto = new DirectMessageResponseDTO
             {
                 Id = message.Id,
                 Content = message.Content,
@@ -161,7 +161,7 @@ namespace Backend.Controllers
             var rawConversations = await conversationsQuery.ToListAsync();
 
             if (!rawConversations.Any())
-                return Ok(new List<ConversationDto>());
+                return Ok(new List<ConversationResponseDTO>());
 
             // Acum luam detaliile utilizatorilor pentru ID-urile gasite (IN clause query - foarte rapid)
             var userIds = rawConversations.Select(c => c.OtherUserId).ToList();
@@ -173,7 +173,7 @@ namespace Backend.Controllers
             var result = rawConversations
                 .Select(c => {
                     var userExists = users.TryGetValue(c.OtherUserId, out var partner);
-                    return new ConversationDto
+                    return new ConversationResponseDTO
                     {
                         OtherUserId = c.OtherUserId,
                         OtherUserUsername = userExists ? partner!.UserName : "Deleted User",
@@ -207,12 +207,14 @@ namespace Backend.Controllers
             if (message.SenderId != currentUserId && message.ReceiverId != currentUserId)
                 return Forbid();
 
-            return Ok(new DirectMessageDto
+            return Ok(new DirectMessageResponseDTO
             {
                 Id = message.Id,
                 Content = message.Content,
                 CreatedAt = message.CreatedAt,
                 SenderUsername = message.Sender?.UserName ?? "Unknown",
+                SenderId = message.SenderId,
+                SenderProfilePictureUrl = message.Sender.ProfilePictureUrl,
                 IsMine = message.SenderId == currentUserId
             });
         }

@@ -4,152 +4,245 @@ import { HubConnection, HubConnectionBuilder, LogLevel } from "@microsoft/signal
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
     faMagnifyingGlass, faPhone, faVideo, faEllipsisVertical, 
-    faPaperclip, faImage, faPaperPlane, faFaceSmile 
+    faPaperclip, faImage, faPaperPlane, faFaceSmile, faUsers 
 } from "@fortawesome/free-solid-svg-icons";
 
 import '../styles/ChatPage.css';
 
-// --- 1. Types matching Backend DTOs ---
+// --- 1. DTO Types (From Backend) ---
 
 interface ConversationDto {
     otherUserId: string;
-    otherUserUsername: string; // Used for API calls
+    otherUserUsername: string;
     otherUserProfilePictureUrl: string;
     lastMessagePreview: string;
     lastMessageTime: string;
     unreadCount: number;
 }
 
-interface DirectMessageDto {
+interface GroupDto {
+    id: number;
+    name: string;
+    description: string;
+    ownerUsername: string;
+    isUserMember: boolean;
+}
+
+interface MessageDto {
     id: number;
     content: string;
     createdAt: string;
-    senderId: string;
-    senderUsername: string;
-    senderProfilePictureUrl: string;
+    // Common fields
+    senderUsername?: string; 
+    username?: string; // Group DTO uses 'username' instead of senderUsername
+    senderProfilePictureUrl?: string;
+    profilePictureUrl?: string; // Group DTO might use this
     isMine: boolean;
 }
 
+// --- 2. Unified UI Type (To handle both in one list) ---
+type ChatType = 'private' | 'group';
+
+interface ChatSession {
+    id: string | number; // Username (for DM) or GroupID (for Groups)
+    displayId: string | number; // Helper for API calls
+    name: string;
+    avatarUrl: string;
+    lastMessage: string;
+    timestamp: string;
+    type: ChatType;
+    unreadCount: number;
+}
+
 function ChatPage() {
-    const location = useLocation(); // To handle redirect from Profile Page
+    const location = useLocation();
 
     // --- State ---
-    const [conversations, setConversations] = useState<ConversationDto[]>([]);
-    // We use USERNAME now because your backend API expects usernames for GET/POST
-    const [activeChatUsername, setActiveChatUsername] = useState<string | null>(null);
-    
-    const [messages, setMessages] = useState<DirectMessageDto[]>([]);
+    const [chatList, setChatList] = useState<ChatSession[]>([]);
+    const [activeChat, setActiveChat] = useState<ChatSession | null>(null);
+    const [messages, setMessages] = useState<MessageDto[]>([]);
     const [inputText, setInputText] = useState("");
     const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
-    // Auto-scroll ref
+    // Refs
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const connectionRef = useRef<HubConnection | null>(null);
 
-    const activeConversation = conversations.find(c => c.otherUserUsername === activeChatUsername);
-
-    
+    // --- 1. Fetch ALL Chats (Conversations + Groups) ---
     useEffect(() => {
-        if (!activeConversation) return;
+        const fetchAllChats = async () => {
+            const token = sessionStorage.getItem("userToken");
+            if (!token) return;
+
+            try {
+                // Parallel Fetch
+                const [convRes, groupRes] = await Promise.all([
+                    fetch('/api/DirectMessages/conversations', { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch('/api/Groups', { headers: { 'Authorization': `Bearer ${token}` } })
+                ]);
+
+                let unifiedList: ChatSession[] = [];
+
+                // A. Process Direct Messages
+                if (convRes.ok) {
+                    const convData: ConversationDto[] = await convRes.json();
+                    const dms: ChatSession[] = convData.map(c => ({
+                        id: c.otherUserUsername, // Unique ID for DMs is username
+                        displayId: c.otherUserUsername,
+                        name: c.otherUserUsername,
+                        avatarUrl: c.otherUserProfilePictureUrl,
+                        lastMessage: c.lastMessagePreview,
+                        timestamp: c.lastMessageTime,
+                        type: 'private',
+                        unreadCount: c.unreadCount
+                    }));
+                    unifiedList = [...unifiedList, ...dms];
+                }
+
+                // B. Process Groups
+                if (groupRes.ok) {
+                    const groupData: GroupDto[] = await groupRes.json();
+                    // Filter only groups where user is a member (if API returns all)
+                    const myGroups = groupData.filter(g => g.isUserMember);
+                    
+                    const groups: ChatSession[] = myGroups.map(g => ({
+                        id: g.id, // Unique ID for Groups is Int ID
+                        displayId: g.id,
+                        name: g.name,
+                        avatarUrl: "", // Default group icon logic later
+                        lastMessage: "Group Chat", // You might want to fetch last message for groups too
+                        timestamp: new Date().toISOString(), // Placeholder if API doesn't send time
+                        type: 'group',
+                        unreadCount: 0
+                    }));
+                    unifiedList = [...unifiedList, ...groups];
+                }
+
+                // Sort by latest activity
+                unifiedList.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+                // --- Handle Redirect from Profile (Start Chat) ---
+                if (location.state?.targetUser) {
+                    const target = location.state.targetUser;
+                    const exists = unifiedList.find(c => c.type === 'private' && c.id === target.username);
+                    
+                    if (exists) {
+                        setActiveChat(exists);
+                    } else {
+                        // Create temp chat
+                        const newChat: ChatSession = {
+                            id: target.username,
+                            displayId: target.username,
+                            name: target.username,
+                            avatarUrl: target.profilePictureUrl,
+                            lastMessage: "Start a conversation",
+                            timestamp: new Date().toISOString(),
+                            type: 'private',
+                            unreadCount: 0
+                        };
+                        unifiedList = [newChat, ...unifiedList];
+                        setActiveChat(newChat);
+                    }
+                    window.history.replaceState({}, document.title);
+                } 
+                // Default select first
+                else if (unifiedList.length > 0 && !activeChat) {
+                    setActiveChat(unifiedList[0]);
+                }
+
+                setChatList(unifiedList);
+
+            } catch (e) {
+                console.error("Error loading chats:", e);
+            }
+        };
+
+        fetchAllChats();
+    }, [location.state]);
+
+
+    // --- 2. SignalR Connection Logic (Dynamic Join) ---
+    useEffect(() => {
+        if (!activeChat) return;
 
         const newConnection = new HubConnectionBuilder()
-                .withUrl("/directMessageHub", {
-                    accessTokenFactory: () => sessionStorage.getItem("userToken") || ""
-                })
-                .withAutomaticReconnect()
-                .configureLogging(LogLevel.Information)
-                .build();
+            .withUrl("http://localhost:5000/directMessageHub", {
+                accessTokenFactory: () => sessionStorage.getItem("userToken") || ""
+            })
+            .withAutomaticReconnect()
+            .configureLogging(LogLevel.Information)
+            .build();
 
-        newConnection.start()
-                .then(() => {
-                    console.log("Connected to SignalR Hub");
-                })
-                .catch(err => console.error("SignalR Connection Error: ", err));
+        const initSignalR = async () => {
+            try {
+                await newConnection.start();
+                console.log("✅ SignalR Connected");
 
-        newConnection.on("ReceiveDirectMessage", (message: DirectMessageDto) => {
-            const isRelevant = message.senderUsername === activeChatUsername || message.isMine;
-            
-            if (isRelevant){
-                setMessages(prev => {
-                    if ( prev.some(m => m.id === message.id)) return prev;
-                    return [...prev, message];
-                })
+                // --- DYNAMIC JOIN LOGIC ---
+                if (activeChat.type === 'private') {
+                    // For DM: Send Username
+                    await newConnection.invoke("JoinChat", activeChat.id as string);
+                    console.log(`Joined Private Chat: ${activeChat.id}`);
+                } 
+                else if (activeChat.type === 'group') {
+                    // For Group: Send Group ID (int)
+                    await newConnection.invoke("JoinGroupChat", activeChat.id as number);
+                    console.log(`Joined Group Chat: ${activeChat.id}`);
+                }
 
-                messagesEndRef.current?.scrollIntoView({ behavior: "smooth"});
+            } catch (err) {
+                console.error("SignalR Error: ", err);
+            }
+        };
+
+        // --- LISTENERS ---
+        
+        // 1. Direct Message Listener
+        newConnection.on("ReceiveDirectMessage", (message: MessageDto) => {
+            if (activeChat.type === 'private' && (message.senderUsername === activeChat.id || message.isMine)) {
+                addMessageToState(message);
             }
         });
 
-        newConnection.on("MessageDeleted", ({ messageId }: {messageId: number}) => {
-            setMessages(prev => prev.filter(m => m.id !== messageId));
-        })
+        // 2. Group Message Listener (NEW)
+        newConnection.on("ReceiveGroupMessage", (message: MessageDto) => {
+            // Check if this message belongs to the active group
+            // (message doesn't have groupId usually, relying on connection room)
+            if (activeChat.type === 'group') {
+                addMessageToState(message);
+            }
+        });
 
+        // 3. Deletion Listeners
+        newConnection.on("MessageDeleted", ({ messageId }) => removeMessageFromState(messageId));
+        newConnection.on("GroupMessageDeleted", ({ messageId }) => removeMessageFromState(messageId));
+
+        initSignalR();
         connectionRef.current = newConnection;
 
         return () => {
             newConnection.stop();
         };
 
-    }, [activeChatUsername]);
+    }, [activeChat]); // Re-connects when switching chats (simplest approach)
 
 
+    // --- 3. Helpers for State ---
+    const addMessageToState = (msg: MessageDto) => {
+        setMessages(prev => {
+            if (prev.some(m => m.id === msg.id)) return prev;
+            return [...prev, msg];
+        });
+    };
+
+    const removeMessageFromState = (id: number) => {
+        setMessages(prev => prev.filter(m => m.id !== id));
+    };
+
+
+    // --- 4. Fetch Messages for Active Chat ---
     useEffect(() => {
-        const fetchConversations = async () => {
-            const token = sessionStorage.getItem("userToken");
-            if (!token) return;
-
-            try {
-                const res = await fetch('/api/DirectMessages/conversations', {
-                    headers: { 'Authorization': `Bearer ${token}` },
-                });
-
-                if (!res.ok) throw new Error(`Failed to load conversations: ${res.status}, ${res.statusText}`);
-                let data: ConversationDto[] = await res.json();
-                
-                // --- Handle "Start Chat" from Profile Page ---
-                if (location.state?.targetUser) {
-                    const target = location.state.targetUser; // { username, profilePictureUrl, ... }
-                    
-                    // Check if this user is already in our list
-                    const exists = data.find(c => c.otherUserUsername === target.username);
-
-                    if (exists) {
-                        // If exists, just set them as active
-                        setActiveChatUsername(target.username);
-                    } else {
-                        // If not, create a temporary conversation object so UI shows it
-                        const newConv: ConversationDto = {
-                            otherUserId: target.id || "temp_id",
-                            otherUserUsername: target.username,
-                            otherUserProfilePictureUrl: target.profilePictureUrl,
-                            lastMessagePreview: "Start a conversation",
-                            lastMessageTime: new Date().toISOString(),
-                            unreadCount: 0
-                        };
-                        // Add to top of list
-                        data = [newConv, ...data];
-                        setActiveChatUsername(target.username);
-                    }
-                    // Clear history state so refresh doesn't trigger this again
-                    window.history.replaceState({}, document.title);
-                } else if (data.length > 0 && !activeChatUsername) {
-                    // Default: Select first chat if nothing active
-                    setActiveChatUsername(data[0].otherUserUsername);
-                }
-
-                setConversations(data);
-
-            } catch (e) {
-                console.error("Error loading conversations:", e);
-            }
-        };
-
-        fetchConversations();
-    }, [location.state]); // Re-run if location state changes (though mostly runs on mount)
-
-
-    // --- 3. Fetch Messages when Active Chat Changes ---
-    useEffect(() => {
-        if (!activeChatUsername) return;
+        if (!activeChat) return;
 
         const fetchMessages = async () => {
             setIsLoadingMessages(true);
@@ -157,15 +250,21 @@ function ChatPage() {
             if (!token) return;
 
             try {
-                // Using USERNAME in URL as requested
-                const res = await fetch(`/api/DirectMessages/conversation/${activeChatUsername}`, {
+                let url = "";
+                if (activeChat.type === 'private') {
+                    url = `/api/DirectMessages/conversation/${activeChat.id}`;
+                } else {
+                    url = `/api/Groups/${activeChat.id}/messages`;
+                }
+
+                const res = await fetch(url, {
                     headers: { 'Authorization': `Bearer ${token}` },
                 });
 
                 if (!res.ok) throw new Error("Failed to load messages");
-                const data: DirectMessageDto[] = await res.json();
-                
+                const data: MessageDto[] = await res.json();
                 setMessages(data);
+
             } catch (e) {
                 console.error("Error loading messages:", e);
             } finally {
@@ -174,40 +273,46 @@ function ChatPage() {
         };
 
         fetchMessages();
-    }, [activeChatUsername]);
+    }, [activeChat]);
 
     // Auto-scroll
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages, isLoadingMessages]);
+    }, [messages]);
 
 
-    // --- 4. Send Message Logic (Optimistic) ---
+    // --- 5. Send Message ---
     const handleSendMessage = async () => {
-        if (!inputText.trim() || !activeChatUsername) return;
+        if (!inputText.trim() || !activeChat) return;
 
         const textToSend = inputText;
-        const tempId = Date.now(); // Temp ID for UI
+        const tempId = Date.now();
+        const token = sessionStorage.getItem("userToken");
 
-        // 1. Optimistic Update
-        const optimisticMsg: DirectMessageDto = {
+        // Optimistic UI
+        const optimisticMsg: MessageDto = {
             id: tempId,
             content: textToSend,
             createdAt: new Date().toISOString(),
-            senderId: "me",
-            senderUsername: "Me",
-            senderProfilePictureUrl: "", // Current user pic (could get from context)
-            isMine: true
+            isMine: true,
+            // Group messages use 'username', DM use 'senderUsername'. Hack to show locally:
+            senderUsername: "Me", 
+            username: "Me" 
         };
         
         setMessages(prev => [...prev, optimisticMsg]);
         setInputText(""); 
 
-        const token = sessionStorage.getItem("userToken");
-
         try {
-            // 2. API Call (Using Username)
-            const res = await fetch(`/api/DirectMessages/send/${activeChatUsername}`, {
+            let url = "";
+            
+            if (activeChat.type === 'private') {
+                url = `/api/DirectMessages/send/${activeChat.id}`;
+            } else {
+                url = `/api/Groups/${activeChat.id}/messages`;
+            }
+
+            const res = await fetch(url, {
                 method: "POST",
                 headers: { 
                     'Authorization': `Bearer ${token}`,
@@ -216,25 +321,15 @@ function ChatPage() {
                 body: JSON.stringify({ content: textToSend })
             });
 
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || "Failed to send");
-            }
+            if (!res.ok) throw new Error("Failed to send");
 
-            // 3. Success: Server returns the created message (with real ID)
-            // Note: Depending on your Controller return, you might need to adjust this
-            // If controller returns `CreatedAtAction`, `res.json()` is the body.
-            // Assuming your controller returns { id, content, createdAt, ... } inside the body or a wrapper
-            
-            // Refetch or just keep optimistic (Simpler for now: keep optimistic, 
-            // but ideally we swap ID here if we need to edit/delete later).
-            
+            // SignalR will update the real message, we rely on duplicate check in addMessageToState
+
         } catch (e) {
-            console.error("Error sending message:", e);
-            alert("Failed to send message.");
-            // 4. Rollback on error
-            setMessages(prev => prev.filter(m => m.id !== tempId));
-            setInputText(textToSend); 
+            console.error("Send error:", e);
+            setMessages(prev => prev.filter(m => m.id !== tempId)); // Rollback
+            setInputText(textToSend);
+            alert("Failed to send message");
         }
     };
 
@@ -242,102 +337,97 @@ function ChatPage() {
         if (e.key === 'Enter') handleSendMessage();
     };
 
-    // --- Helpers ---
-    const formatTime = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    };
 
-    const formatTimeAgo = (dateString: string) => {
-        const date = new Date(dateString);
-        const now = new Date();
-        const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-        
-        if (diffInSeconds < 60) return "Just now";
-        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-        return `${Math.floor(diffInSeconds / 86400)}d ago`;
-    };
-
+    // --- RENDER ---
     return (
         <div className="chat-layout">
-            {/* --- LEFT SIDEBAR: CONVERSATIONS --- */}
             <aside className="chat-sidebar">
                 <div className="sidebar-header">
                     <h2>Messages</h2>
-                    <div className="search-bar">
-                        <FontAwesomeIcon icon={faMagnifyingGlass} className="search-icon" />
-                        <input type="text" placeholder="Search conversations..." />
-                    </div>
+                    {/* ... Search ... */}
                 </div>
 
                 <div className="conversation-list">
-                    {conversations.map((conv) => (
+                    {chatList.map((chat) => (
                         <div 
-                            key={conv.otherUserUsername} 
-                            className={`conversation-item ${activeChatUsername === conv.otherUserUsername ? 'active' : ''}`}
-                            onClick={() => setActiveChatUsername(conv.otherUserUsername)}
+                            key={`${chat.type}-${chat.id}`} 
+                            className={`conversation-item ${activeChat?.id === chat.id && activeChat?.type === chat.type ? 'active' : ''}`}
+                            onClick={() => setActiveChat(chat)}
                         >
                             <div className="avatar-wrapper">
-                                <img src={conv.otherUserProfilePictureUrl || "/assets/img/no_user.png"} alt={conv.otherUserUsername} />
+                                {chat.type === 'group' ? (
+                                    <div className="group-avatar-placeholder">
+                                         <FontAwesomeIcon icon={faUsers} />
+                                    </div>
+                                ) : (
+                                    <img src={chat.avatarUrl || "/assets/img/no_user.png"} alt={chat.name} />
+                                )}
                             </div>
                             
                             <div className="conv-info">
                                 <div className="conv-top">
-                                    <span className="conv-name">{conv.otherUserUsername}</span>
-                                    <span className="conv-time">{conv.lastMessageTime ? formatTimeAgo(conv.lastMessageTime) : ''}</span>
+                                    <span className="conv-name">{chat.name}</span>
+                                    <span className="conv-time">{formatTimeAgo(chat.timestamp)}</span>
                                 </div>
                                 <div className="conv-bottom">
-                                    <p className="conv-last-msg">{conv.lastMessagePreview}</p>
-                                    {conv.unreadCount > 0 && (
-                                        <span className="unread-badge">{conv.unreadCount}</span>
-                                    )}
+                                    <p className="conv-last-msg">
+                                        {chat.type === 'group' ? <span className="group-tag">Group</span> : null}
+                                        {chat.lastMessage}
+                                    </p>
+                                    {chat.unreadCount > 0 && <span className="unread-badge">{chat.unreadCount}</span>}
                                 </div>
                             </div>
                         </div>
                     ))}
-                    {conversations.length === 0 && <div className="no-conv-placeholder">No conversations yet</div>}
                 </div>
             </aside>
 
-            {/* --- RIGHT SIDE: ACTIVE CHAT --- */}
             <main className="chat-window">
-                {activeChatUsername && activeConversation ? (
+                {activeChat ? (
                     <>
-                        {/* Chat Header */}
                         <header className="chat-header">
                             <div className="chat-user-profile">
                                 <div className="avatar-wrapper small">
-                                    <img src={activeConversation.otherUserProfilePictureUrl || "/assets/img/no_user.png"} alt="" />
+                                    {activeChat.type === 'group' ? (
+                                        <div className="group-avatar-placeholder small">
+                                             <FontAwesomeIcon icon={faUsers} />
+                                        </div>
+                                    ) : (
+                                        <img src={activeChat.avatarUrl || "/assets/img/no_user.png"} alt="" />
+                                    )}
                                 </div>
                                 <div className="chat-user-details">
-                                    <h3>{activeConversation.otherUserUsername}</h3>
+                                    <h3>{activeChat.name}</h3>
+                                    {activeChat.type === 'group' && <span className="status-text">Group Chat</span>}
                                 </div>
                             </div>
                             <div className="chat-header-actions">
-                                <button className="icon-btn"><FontAwesomeIcon icon={faPhone} /></button>
-                                <button className="icon-btn"><FontAwesomeIcon icon={faVideo} /></button>
                                 <button className="icon-btn"><FontAwesomeIcon icon={faEllipsisVertical} /></button>
                             </div>
                         </header>
 
-                        {/* Messages Area */}
                         <div className="messages-area">
-                            {isLoadingMessages && <div className="loading-msg">Loading messages...</div>}
+                            {isLoadingMessages && <div className="loading-msg">Loading...</div>}
                             
                             {messages.map((msg) => (
                                 <div key={msg.id} className={`message-row ${msg.isMine ? 'me' : 'them'}`}>
                                     {!msg.isMine && (
-                                        <img 
-                                            src={msg.senderProfilePictureUrl || activeConversation.otherUserProfilePictureUrl || "/assets/img/no_user.png"} 
-                                            alt="avatar" 
-                                            className="msg-avatar" 
-                                        />
+                                        <div className="msg-sender-info">
+                                            {/* Show Avatar */}
+                                            <img 
+                                                src={msg.senderProfilePictureUrl || msg.profilePictureUrl || "/assets/img/no_user.png"} 
+                                                alt="avatar" 
+                                                className="msg-avatar" 
+                                            />
+                                        </div>
                                     )}
                                     <div className="message-content">
-                                        <div className="message-bubble">
-                                            {msg.content}
-                                        </div>
+                                        {/* In groups, show the name of the person talking */}
+                                        {activeChat.type === 'group' && !msg.isMine && (
+                                            <span className="msg-sender-name">{msg.senderUsername || msg.username}</span>
+                                        )}
+
+                                        <div className="message-bubble">{msg.content}</div>
                                         <span className="message-time">{formatTime(msg.createdAt)}</span>
                                     </div>
                                 </div>
@@ -345,33 +435,45 @@ function ChatPage() {
                             <div ref={messagesEndRef} />
                         </div>
 
-                        {/* Input Area */}
                         <div className="chat-input-area">
-                            <div className="input-actions-left">
-                                <button className="icon-btn"><FontAwesomeIcon icon={faImage} /></button>
-                                <button className="icon-btn"><FontAwesomeIcon icon={faPaperclip} /></button>
-                            </div>
-                            <div className="input-wrapper">
-                                <input 
-                                    type="text" 
-                                    placeholder="Type a message..." 
-                                    value={inputText}
-                                    onChange={(e) => setInputText(e.target.value)}
-                                    onKeyDown={handleKeyDown}
-                                />
-                                <FontAwesomeIcon icon={faFaceSmile} className="smiley-icon" />
-                            </div>
+                           {/* ... Same Input Area ... */}
+                           <input 
+                                type="text" 
+                                placeholder={activeChat.type === 'group' ? "Message group..." : "Type a message..."}
+                                value={inputText}
+                                onChange={(e) => setInputText(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                            />
                             <button className="send-btn" onClick={handleSendMessage}>
                                 <FontAwesomeIcon icon={faPaperPlane} />
                             </button>
                         </div>
                     </>
                 ) : (
-                    <div className="no-chat-selected">Select a conversation or start a new one</div>
+                    <div className="no-chat-selected">Select a conversation</div>
                 )}
             </main>
         </div>
     )
 }
+
+// Helpers
+const formatTime = (dateString: string) => {
+    if(!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+const formatTimeAgo = (dateString: string) => {
+    if(!dateString) return "";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return "Just now";
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
+    return `${Math.floor(diffInSeconds / 86400)}d`;
+};
 
 export default ChatPage;

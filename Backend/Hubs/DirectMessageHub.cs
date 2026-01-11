@@ -7,98 +7,78 @@ using System.Security.Claims;
 
 namespace Backend.Hubs
 {
-    /// <summary>
-    /// SignalR Hub pentru mesaje directe în timp real
-    /// Frontend: 
-    /// const connection = new HubConnectionBuilder()
-    ///     .withUrl("http://localhost:5000/directMessageHub", {
-    ///         accessTokenFactory: () => localStorage.getItem("token")
-    ///     })
-    ///     .withAutomaticReconnect()
-    ///     .build();
-    /// 
-    /// await connection.start();
-    /// connection.on("ReceiveDirectMessage", (message) => { /* update UI */ });
-    /// </summary>
     [Authorize]
     public class DirectMessageHub : Hub
     {
-        private readonly AppDbContext _context;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public DirectMessageHub(AppDbContext context)
+        // Injectăm UserManager pentru a putea găsi ID-ul pe baza Username-ului primit din React
+        public DirectMessageHub(UserManager<ApplicationUser> userManager)
         {
-            _context = context;
+            _userManager = userManager;
         }
 
         /// <summary>
-        /// Apelat din frontend când utilizatorul deschide o conversație
-        /// Frontend: connection.invoke("JoinConversation", recipientId)
-        /// 
-        /// Purpose: Adaugă utilizatorul în grup SignalR corespunzător conversației
-        /// Group name format: "conversation_{userId1}_{userId2}" (lexicografic sortate pentru consistență)
+        /// Apelat din frontend: connection.invoke("JoinChat", "nume_utilizator_partener")
+        /// Backend-ul caută ID-ul partenerului, generează ID-ul grupului și face join.
         /// </summary>
-        public async Task JoinConversation(string otherUserId)
+        public async Task JoinChat(string otherUsername)
         {
-            var currentUserId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(currentUserId) || string.IsNullOrEmpty(otherUserId))
-                return;
+            var currentUserId = Context.UserIdentifier;
+            if (string.IsNullOrEmpty(currentUserId)) return;
 
-            // Grupul este sortat lexicografic pentru a asigura că ambii utilizatori sunt în același grup
-            var conversationId = GenerateConversationId(currentUserId, otherUserId);
+            // Căutăm userul target în baza de date
+            var otherUser = await _userManager.FindByNameAsync(otherUsername);
+            if (otherUser == null) return; // Sau poți arunca o eroare/log
+
+            // Generăm numele grupului intern (ex: "conversation_GUID1_GUID2")
+            var conversationId = GenerateConversationId(currentUserId, otherUser.Id);
+
+            // Adăugăm conexiunea curentă în acest grup
             await Groups.AddToGroupAsync(Context.ConnectionId, conversationId);
+
+            // Opțional: Putem notifica debug
+            // await Clients.Caller.SendAsync("DebugInfo", $"Joined group: {conversationId}");
         }
 
         /// <summary>
-        /// Apelat din frontend când utilizatorul pleacă dintr-o conversație
-        /// Frontend: connection.invoke("LeaveConversation", recipientId)
-        /// 
-        /// Purpose: Îl elimină din grup SignalR
+        /// Apelat din frontend: connection.invoke("LeaveChat", "nume_utilizator_partener")
         /// </summary>
-        public async Task LeaveConversation(string otherUserId)
+        public async Task LeaveChat(string otherUsername)
         {
-            var currentUserId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(currentUserId) || string.IsNullOrEmpty(otherUserId))
-                return;
+            var currentUserId = Context.UserIdentifier;
+            var otherUser = await _userManager.FindByNameAsync(otherUsername);
 
-            var conversationId = GenerateConversationId(currentUserId, otherUserId);
+            if (string.IsNullOrEmpty(currentUserId) || otherUser == null) return;
+
+            var conversationId = GenerateConversationId(currentUserId, otherUser.Id);
+
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, conversationId);
         }
 
         /// <summary>
-        /// Apelat din frontend pentru a indica faptul că utilizatorul scrie
-        /// Frontend: connection.invoke("SendTypingIndicator", recipientId, true) // true = typing, false = stop
-        /// 
-        /// Purpose: Notifică cealaltă persoană că utilizatorul scrie în prezent
+        /// Frontend: connection.invoke("SendTypingIndicator", "nume_utilizator_partener", true/false)
         /// </summary>
-        public async Task SendTypingIndicator(string otherUserId, bool isTyping)
+        public async Task SendTypingIndicator(string otherUsername, bool isTyping)
         {
-            var currentUserId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(currentUserId) || string.IsNullOrEmpty(otherUserId))
-                return;
+            var currentUserId = Context.UserIdentifier;
+            var otherUser = await _userManager.FindByNameAsync(otherUsername);
 
-            var conversationId = GenerateConversationId(currentUserId, otherUserId);
-            
-            // Notifică toți din grup despre typing indicator (exceptând expeditorul)
-            await Clients.Group(conversationId).SendAsync("UserTyping", new
+            if (string.IsNullOrEmpty(currentUserId) || otherUser == null) return;
+
+            var conversationId = GenerateConversationId(currentUserId, otherUser.Id);
+
+            // Trimitem evenimentul către toți ceilalți din grup (exclusiv cel care scrie)
+            await Clients.OthersInGroup(conversationId).SendAsync("UserTyping", new
             {
-                UserId = currentUserId,
+                Username = Context.User?.Identity?.Name, // Trimitem numele, e mai util in UI
                 IsTyping = isTyping
             });
         }
 
         /// <summary>
-        /// Apelat de backend controller după ce mesajul e salvat în DB
-        /// Nu se apelează din frontend direct - controller-ul apelează asta
-        /// </summary>
-        public async Task NotifyNewMessage(string conversationId, object messageDto)
-        {
-            // Trimite mesajul în timp real grupului corespunzător conversației
-            await Clients.Group(conversationId).SendAsync("ReceiveDirectMessage", messageDto);
-        }
-
-        /// <summary>
-        /// Genereaza ID-ul conversației în mod consistent
-        /// Sortează ID-urile pentru a asigura că ambii utilizatori sunt în același grup
+        /// Helper: Generează ID-ul unic al conversației (alfabetic)
+        /// Astfel, conversation_A_B este identic cu conversation_B_A
         /// </summary>
         private static string GenerateConversationId(string userId1, string userId2)
         {
@@ -108,14 +88,13 @@ namespace Backend.Hubs
 
         public override async Task OnConnectedAsync()
         {
+            // Aici poți mapa conexiunea la un UserID în DB dacă vrei să știi cine e online
             await base.OnConnectedAsync();
-            // Optional: log connection
         }
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
             await base.OnDisconnectedAsync(exception);
-            // Optional: clean up
         }
     }
 }

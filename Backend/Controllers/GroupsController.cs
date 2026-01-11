@@ -21,13 +21,13 @@ namespace Backend.Controllers
         private readonly AppDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IAiContentService _aiService;
-        private readonly IHubContext<ChatHub> _hubContext;
+        private readonly IHubContext<DirectMessageHub> _hubContext;
 
         public GroupsController(
             AppDbContext context,
             UserManager<ApplicationUser> userManager,
             IAiContentService aiService,
-            IHubContext<ChatHub> hubContext)
+            IHubContext<DirectMessageHub> hubContext)
         {
             _context = context;
             _userManager = userManager;
@@ -251,17 +251,12 @@ namespace Backend.Controllers
         {
             if (string.IsNullOrWhiteSpace(dto.Content)) return BadRequest(new { error = "Message cannot be empty." });
 
-            // AI CHECK
-            //bool isSafe = await _aiService.IsContentSafeAsync(dto.Content);
-            //if (!isSafe)
-            //{
-            //    return BadRequest(new { error = "Your message contains inappropriate terms (insults, hate speech, etc.). Please reformulate." });
-            //}
-
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var currentUser = await _userManager.FindByIdAsync(currentUserId!);
+
             if (string.IsNullOrWhiteSpace(currentUserId) || currentUser == null)
                 return BadRequest(new { error = "User identification error." });
+
             var isMember = await _context.GroupMembers
                 .AnyAsync(gm => gm.GroupId == id && gm.UserId == currentUserId && gm.Status == GroupMemberStatus.Accepted);
 
@@ -286,12 +281,16 @@ namespace Backend.Controllers
                 CreatedAt = message.CreatedAt,
                 Username = currentUser.UserName!,
                 ProfilePictureUrl = currentUser.ProfilePictureUrl,
-                IsMine = false
+                IsMine = false // Frontend will calculate 'IsMine'
             };
 
-            await _hubContext.Clients.Group(id.ToString()).SendAsync("ReceiveGroupMessage", messageDto);
+            // CHANGE 2: Use the "group_{id}" naming convention
+            // This ensures "group_10" doesn't collide with "user_10" or "conversation_10_11"
+            await _hubContext.Clients.Group($"group_{id}").SendAsync("ReceiveGroupMessage", messageDto);
+
             return Ok(new { message = "Message sent successfully." });
         }
+
 
         [HttpDelete("{groupId}/messages/{messageId}")]
         public async Task<IActionResult> DeleteMessage(int groupId, int messageId)
@@ -299,7 +298,7 @@ namespace Backend.Controllers
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrWhiteSpace(currentUserId))
                 return BadRequest(new { error = "User identification error." });
-            
+
             var message = await _context.GroupMessages.FindAsync(messageId);
             if (message == null || message.GroupId != groupId)
                 return NotFound(new { error = "Message not found in this group." });
@@ -314,8 +313,13 @@ namespace Backend.Controllers
             _context.GroupMessages.Remove(message);
             await _context.SaveChangesAsync();
 
+            // CHANGE 3: Add Broadcast for Deletion
+            await _hubContext.Clients.Group($"group_{groupId}").SendAsync("GroupMessageDeleted", new { messageId = messageId });
+
             return Ok(new { message = "Message deleted successfully." });
         }
+
+
 
         [HttpPut("{groupId}/messages/{messageId}")]
         public async Task<IActionResult> EditMessage(int groupId, int messageId, [FromBody] SendGroupMessageDTO dto)
@@ -335,23 +339,15 @@ namespace Backend.Controllers
             if (group == null)
                 return NotFound(new { error = "Group not found." });
 
-
             if (message.UserId != currentUserId && !User.IsInRole("Admin") && group.OwnerId != currentUserId)
                 return StatusCode(403, new { error = "You can only delete your own messages unless you are an administrator." });
-
-            // AI CHECK
-            // bool isSafe = await _aiService.IsContentSafeAsync(dto.Content);
-            // if (!isSafe)
-            // {
-            //     return BadRequest(new { error = "The updated content contains inappropriate terms." });
-            // }
-            // ---------------------------------------------------------------------------
 
             message.Content = dto.Content.Trim();
             _context.GroupMessages.Update(message);
             await _context.SaveChangesAsync();
 
-            await _hubContext.Clients.Group(groupId.ToString()).SendAsync("MessageEdited", new
+            // CHANGE 4: Broadcast Edit to the correct "group_{id}"
+            await _hubContext.Clients.Group($"group_{groupId}").SendAsync("GroupMessageEdited", new
             {
                 messageId = message.Id,
                 content = message.Content
