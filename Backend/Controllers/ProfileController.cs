@@ -99,51 +99,41 @@ namespace Backend.Controllers
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            // Pasul 1: Luăm userul inițial
             var user = await _userManager.FindByIdAsync(userId!);
-            if (user == null) return NotFound("User not found.");
 
-            // --- A. ACTUALIZARE USERNAME (O facem separat și salvăm) ---
+            if (user == null) return NotFound(new { error = "User not found." });
+
+            bool hasChanges = false;
+
             if (!string.IsNullOrWhiteSpace(dto.Username) && dto.Username != user.UserName)
             {
                 var existingUser = await _userManager.FindByNameAsync(dto.Username);
-                // Verificăm să nu fie luat de altcineva
                 if (existingUser != null && existingUser.Id != user.Id)
                 {
-                    return BadRequest(new { message = $"Numele de utilizator '{dto.Username}' este deja folosit." });
+                    return BadRequest(new { error = $"The username '{dto.Username}' is already in use." });
                 }
 
-                // Această funcție face update, normalizează numele și salvează în DB automat
-                var setUserNameResult = await _userManager.SetUserNameAsync(user, dto.Username);
-
-                if (!setUserNameResult.Succeeded)
-                {
-                    return BadRequest(setUserNameResult.Errors);
-                }
-
-                user = await _userManager.FindByIdAsync(userId!);
+                // We update the property directly; UpdateAsync will handle normalization
+                user.UserName = dto.Username;
+                hasChanges = true;
             }
 
-            // --- B. ACTUALIZARE RESTUL DATELOR ---
-
-            bool hasChanges = false; // Optimizare: salvăm doar dacă am schimbat ceva aici
-
+        
             if (dto.Privacy.HasValue && user.IsPrivate != dto.Privacy.Value)
             {
                 user.IsPrivate = dto.Privacy.Value;
                 hasChanges = true;
             }
 
+ 
             if (dto.Description != null && user.Description != dto.Description)
             {
-                // --- FILTRARE AI ---
                 bool isSafe = await _aiService.IsContentSafeAsync(dto.Description);
                 if (!isSafe)
                 {
-                    return BadRequest("Descrierea profilului conține termeni nepotriviți. Te rugăm să reformulezi.");
+                    return BadRequest(new { error = "The profile description contains inappropriate terms. Please reformulate." });
                 }
-                // -------------------
+
                 user.Description = dto.Description;
                 hasChanges = true;
             }
@@ -154,17 +144,17 @@ namespace Backend.Controllers
                 hasChanges = true;
             }
 
-            // --- C. SALVARE FINALĂ (Doar dacă e nevoie) ---
+           
             if (hasChanges)
             {
+                // UpdateAsync handles both the basic fields and the NormalizedUserName
                 var result = await _userManager.UpdateAsync(user);
                 if (!result.Succeeded) return BadRequest(result.Errors);
             }
 
-            // Returnăm datele actualizate
             return Ok(new
             {
-                message = "Profil actualizat cu succes!",
+                message = "Profile updated successfully!",
                 username = user.UserName,
                 privacy = user.IsPrivate,
                 description = user.Description,
