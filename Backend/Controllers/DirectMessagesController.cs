@@ -36,39 +36,31 @@ namespace Backend.Controllers
         }
 
         [HttpPost("send/{recipientUsername}")]
-        public async Task<IActionResult> SendMessage(string recipientUsername, [FromBody] SendDirectMessageDto dto)
+        public async Task<IActionResult> SendMessage(string recipientUsername, [FromBody] SendDirectMessageDTO dto)
         {
-            // --- VALIDARE 1: Input Validation ---
-            if (string.IsNullOrWhiteSpace(dto.Content))
-                return BadRequest(new { error = "Mesajul nu poate fi gol." });
+            if (string.IsNullOrWhiteSpace(dto.Content)) return BadRequest(new { error = "Message content cannot be empty." });
 
-            if (dto.Content.Length > 1000)
-                return BadRequest(new { error = "Mesajul nu poate depași 1000 de caractere." });
+            if (dto.Content.Length > 500) return BadRequest(new { error = "Message content is too long (max 500 characters)." });
 
-            // --- VALIDARE 2: Current User ---
             var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(currentUserId))
-                return Unauthorized(new { error = "Nu ești autentificat." });
-
-            // --- VALIDARE 3: Recipient by Username ---
             var recipient = await _userManager.FindByNameAsync(recipientUsername);
-            if (recipient == null)
-                return NotFound(new { error = $"Utilizatorul '{recipientUsername}' nu există." });
 
-            // --- VALIDARE 4: Self-Message Prevention ---
-            if (currentUserId == recipient.Id)
-                return BadRequest(new { error = "Nu poți trimite mesaje către tine." });
+            if (recipient == null) return NotFound(new { error = "The recipient user does not exist." });
 
-            // --- VALIDARE 5: AI Content Check ---
-            bool isSafe = await _aiService.IsContentSafeAsync(dto.Content);
-            if (!isSafe)
-                return BadRequest(new { error = "Mesajul conține termeni nepotriviți (AI Filter)." });
+            if (currentUserId == recipient.Id) return BadRequest(new { error = "You cannot send a message to yourself." });
 
-            // --- ACTION: Save Message ---
+            // AI Safety Check-optional, I want to test the real-time speed and notifications
+            
+            //bool isSafe = await _aiService.IsContentSafeAsync(dto.Content);
+            //if (!isSafe)
+            //{ 
+            //    return BadRequest(new { error = "Your content contains inappropriate terms. Please reformulate." });
+            //}
+
             var message = new DirectMessage
             {
-                SenderId = currentUserId,
-                ReceiverId = recipient.Id,
+                SenderId = currentUserId!,
+                ReceiverId = recipient.Id!,
                 Content = dto.Content.Trim(),
                 CreatedAt = DateTime.UtcNow
             };
@@ -102,9 +94,7 @@ namespace Backend.Controllers
             return CreatedAtAction(nameof(SendMessage), new { id = message.Id }, new
             {
                 id = message.Id,
-                content = message.Content,
-                createdAt = message.CreatedAt,
-                message = "Mesaj trimis cu succes!"
+                message = "Message sent successfully!"
             });
         }
 
@@ -124,13 +114,13 @@ namespace Backend.Controllers
                             (m.SenderId == otherUser.Id && m.ReceiverId == currentUserId))
                 .Include(m => m.Sender)
                 .OrderBy(m => m.CreatedAt)
-                .Select(m => new DirectMessageDto
+                .Select(m => new DirectMessageResponseDTO
                 {
                     Id = m.Id,
                     Content = m.Content,
                     CreatedAt = m.CreatedAt,
-                    SenderId = m.SenderId,
-                    SenderUsername = m.Sender!.UserName ?? "Unknown",
+                    SenderId = m.SenderId!,
+                    SenderUsername = m.Sender!.UserName!,
                     SenderProfilePictureUrl = m.Sender.ProfilePictureUrl,
                     IsMine = m.SenderId == currentUserId
                 })

@@ -42,7 +42,6 @@ namespace Backend.Controllers
             }
 
             var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var currentUserRole = User.FindFirstValue(ClaimTypes.Role);
             if (string.IsNullOrEmpty(currentUserId))
             {
                 return Unauthorized("You are not authenticated.");
@@ -68,7 +67,7 @@ namespace Backend.Controllers
                 canComment = true;
             }
             //Admins can comment to any posts
-            else if (currentUserRole == "Admin")
+            else if (User.IsInRole("Admin"))
             {
                 canComment = true;
             }    
