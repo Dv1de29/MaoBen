@@ -162,6 +162,7 @@ const EditProfilePage = () => {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
+                        username: formData.userName,
                         privacy: formData.privacy,
                         description: formData.description,
                         profilePictureUrl: formData.profile_image,
