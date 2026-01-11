@@ -66,10 +66,10 @@ const CreatePostPage = () => {
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
 
-        if (!selectedFile) {
-            alert("Please select an image for your post.");
-            return;
-        }
+        // if (!selectedFile) {
+        //     alert("Please select an image for your post.");
+        //     return;
+        // }
 
         setUploading(true);
 
@@ -78,7 +78,7 @@ const CreatePostPage = () => {
             
             const formData = new FormData();
             formData.append('description', description);
-            formData.append('image', selectedFile);
+            formData.append('image', selectedFile ? selectedFile : "");
 
             const res = await fetch("/api/Posts/create_post", {
                 method: "POST",
@@ -174,7 +174,7 @@ const CreatePostPage = () => {
                     <button 
                         type="submit" 
                         className="btn-save"
-                        disabled={uploading || !selectedFile}
+                        disabled={uploading }
                     >
                         {uploading ? "Posting..." : "Share"}
                     </button>

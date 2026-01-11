@@ -68,7 +68,7 @@ namespace Backend.Controllers
 
             var myPosts = await _context.Posts
                 .Include(p => p.User)
-                .Where(p => p.OwnerID == userId)
+                .Where(p => p.OwnerID == userId && !string.IsNullOrEmpty(p.Image_path))
                 .OrderByDescending(p => p.Created)
                 .Select(p => new GetPostsWithUserResponseDTO
                 {
@@ -175,8 +175,10 @@ namespace Backend.Controllers
 
             if (!canView) return StatusCode(403, new { error = "This account is private." });
 
+  
+
             var posts = await _context.Posts
-                .Include(p => p.User)
+    
                 .Where(p => p.User.UserName!.ToLower() == ownerUsername.ToLower())
                 .OrderByDescending(p => p.Created)
                 .Select(p => new GetPostsWithUserResponseDTO
@@ -190,7 +192,9 @@ namespace Backend.Controllers
                     Created = p.Created,
                     Username = p.User.UserName!,
                     user_image_path = p.User.ProfilePictureUrl,
-                    Has_liked = _context.PostLikes.Any(pl => pl.PostId == p.Id && pl.UserId == currentUserId),
+
+                    // FIX: Use .Any() directly. This translates to "CASE WHEN EXISTS(...) THEN 1 ELSE 0" in SQL
+                    Has_liked = _context.PostLikes.Any(pl => pl.PostId == p.Id && pl.UserId.ToLower() == currentUserId.ToLower())
                 })
                 .ToListAsync();
 
@@ -203,6 +207,7 @@ namespace Backend.Controllers
         [ApiExplorerSettings(IgnoreApi = true)]
         public async Task<IActionResult> CreatePost([FromForm] CreatePostDTO dto)
         {
+            // 1. Check Content Safety (Text)
             if (!string.IsNullOrWhiteSpace(dto.Description))
             {
                 bool isSafe = await _aiService.IsContentSafeAsync(dto.Description);
@@ -212,43 +217,60 @@ namespace Backend.Controllers
                 }
             }
 
-            if (dto.Image == null || dto.Image.Length == 0)
+            // 2. Validate that the post isn't completely empty
+            // (Must have either a Description OR an Image)
+            if (string.IsNullOrWhiteSpace(dto.Description) && (dto.Image == null || dto.Image.Length == 0))
             {
-                return BadRequest(new { error = "An image or video file is required." });
+                return BadRequest(new { error = "Post cannot be empty. Please provide text or an image." });
             }
 
-            if (!dto.Image.ContentType.StartsWith("image/") && !dto.Image.ContentType.StartsWith("video/"))
+            // 3. Handle Image Upload (Optional)
+            string? relativePath = null; // Default to null if no image
+
+            if (dto.Image != null && dto.Image.Length > 0)
             {
-                return BadRequest(new { error = "Unsupported file type. Please upload an image or video." });
+                // Validate File Type
+                if (!dto.Image.ContentType.StartsWith("image/") && !dto.Image.ContentType.StartsWith("video/"))
+                {
+                    return BadRequest(new { error = "Unsupported file type. Please upload an image or video." });
+                }
+
+                string extension = Path.GetExtension(dto.Image.FileName);
+                string fileName = $"{Guid.NewGuid()}{extension}";
+                relativePath = $"/be_assets/img/posts/{fileName}";
+
+                string targetFolder = Path.Combine(_webHostEnvironment.WebRootPath, "be_assets", "img", "posts");
+                string physicalPath = Path.Combine(targetFolder, fileName);
+
+                try
+                {
+                    if (!Directory.Exists(targetFolder)) Directory.CreateDirectory(targetFolder);
+
+                    using (var stream = new FileStream(physicalPath, FileMode.Create))
+                    {
+                        await dto.Image.CopyToAsync(stream);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { error = $"Server error while saving file: {ex.Message}" });
+                }
             }
 
-            string extension = Path.GetExtension(dto.Image.FileName);
-            string fileName = $"{Guid.NewGuid()}{extension}";
-            string relativePath = $"/be_assets/img/posts/{fileName}";
-
-            string targetFolder = Path.Combine(_webHostEnvironment.WebRootPath, "be_assets", "img", "posts");
-            string physicalPath = Path.Combine(targetFolder, fileName);
-
+            // 4. Save Post to DB
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized(new { error = "Authentication session expired." });
 
             var newPost = new Posts
             {
                 OwnerID = userId!,
-                Image_path = relativePath,
+                Image_path = relativePath, // Will be null if no image was uploaded
                 Description = dto.Description,
                 Created = DateTime.UtcNow,
             };
 
             try
             {
-                if (!Directory.Exists(targetFolder)) Directory.CreateDirectory(targetFolder);
-
-                using (var stream = new FileStream(physicalPath, FileMode.Create))
-                {
-                    await dto.Image.CopyToAsync(stream);
-                }
-
                 _context.Posts.Add(newPost);
                 await _context.SaveChangesAsync();
 

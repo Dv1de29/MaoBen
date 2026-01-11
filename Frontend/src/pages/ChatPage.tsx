@@ -1,15 +1,15 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { HubConnection, HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
-    faMagnifyingGlass, faPhone, faVideo, faEllipsisVertical, 
+    faMagnifyingGlass, faEllipsisVertical, 
     faPaperclip, faImage, faPaperPlane, faFaceSmile, faUsers, faPlus, faTimes, faTrash 
 } from "@fortawesome/free-solid-svg-icons";
 
 import '../styles/ChatPage.css';
 
-// --- 1. DTO Types (From Backend) ---
+// --- 1. DTO Types ---
 
 interface ConversationDto {
     otherUserId: string;
@@ -32,20 +32,19 @@ interface MessageDto {
     id: number;
     content: string;
     createdAt: string;
-    // Common fields
     senderUsername?: string; 
-    username?: string; // Group DTO uses 'username' instead of senderUsername
+    username?: string; 
     senderProfilePictureUrl?: string;
-    profilePictureUrl?: string; // Group DTO might use this
+    profilePictureUrl?: string;
     isMine: boolean;
 }
 
-// --- 2. Unified UI Type (To handle both in one list) ---
+// --- 2. Unified UI Type ---
 type ChatType = 'private' | 'group';
 
 interface ChatSession {
-    id: string | number; // Username (for DM) or GroupID (for Groups)
-    displayId: string | number; // Helper for API calls
+    id: string | number; 
+    displayId: string | number; 
     name: string;
     avatarUrl: string;
     lastMessage: string;
@@ -55,6 +54,90 @@ interface ChatSession {
     ownerUsername?: string;
 }
 
+// --- 3. Message Item Sub-Component (FIXED TYPES) ---
+const MessageItem = ({ 
+    msg, 
+    activeChat, 
+    formatTime, 
+    onEditMessage 
+}: { 
+    msg: MessageDto, 
+    activeChat: ChatSession, 
+    formatTime: (d: string) => string,
+    onEditMessage: (msgId: number, newContent: string) => void
+}) => {
+    const [text, setText] = useState<string>(msg.content);
+
+    const handleBlur = () => {
+        if ( text !== msg.content) {
+            onEditMessage(msg.id, text);
+        } else {
+            setText(msg.content);
+        }
+    };
+
+    // FIX: Added <HTMLTextAreaElement> to allow .blur()
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault(); 
+            e.currentTarget.blur(); 
+        }
+        if (e.key === 'Escape') {
+            setText(msg.content); 
+            e.currentTarget.blur();
+        }
+    };
+
+    const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
+        const target = e.currentTarget;
+        target.style.height = 'auto';
+        target.style.height = target.scrollHeight + 'px';
+    };
+
+    return (
+        <div className={`message-row ${msg.isMine ? 'me' : 'them'}`}>
+            {!msg.isMine && (
+                <div className="msg-sender-info">
+                    <img 
+                        src={msg.senderProfilePictureUrl || msg.profilePictureUrl || "/assets/img/no_user.png"} 
+                        alt="avatar" 
+                        className="msg-avatar" 
+                    />
+                </div>
+            )}
+            <div className="message-content">
+                {activeChat.type === 'group' && !msg.isMine && (
+                    <span className="msg-sender-name">{msg.senderUsername || msg.username}</span>
+                )}
+
+                <div className="message-bubble">
+                    {msg.isMine ? (
+                        <textarea
+                            className="editable-msg-input"
+                            value={text}
+                            onChange={(e) => setText(e.target.value)}
+                            onBlur={handleBlur}
+                            onKeyDown={handleKeyDown}
+                            onInput={handleInput}
+                            rows={1}
+                            ref={(el) => {
+                                if (el) {
+                                    el.style.height = 'auto';
+                                    el.style.height = el.scrollHeight + 'px';
+                                }
+                            }}
+                        />
+                    ) : (
+                        text
+                    )}
+                </div>
+                <span className="message-time">{formatTime(msg.createdAt)}</span>
+            </div>
+        </div>
+    );
+};
+
+// --- 4. Main Component ---
 function ChatPage() {
     const location = useLocation();
 
@@ -67,7 +150,6 @@ function ChatPage() {
 
     const [currentUsername, setCurrentUsername] = useState<string>("");
     const [isAdmin, setIsAdmin] = useState<boolean>(false);
-
 
     const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
     const [newGroupName, setNewGroupName] = useState("");
@@ -85,14 +167,13 @@ function ChatPage() {
         setIsAdmin(adminRole);
     }, []);
 
-    // --- 1. Fetch ALL Chats (Conversations + Groups) ---
+    // --- Fetch ALL Chats ---
     useEffect(() => {
         const fetchAllChats = async () => {
             const token = sessionStorage.getItem("userToken");
             if (!token) return;
 
             try {
-                // Parallel Fetch
                 const [convRes, groupRes] = await Promise.all([
                     fetch('/api/DirectMessages/conversations', { headers: { 'Authorization': `Bearer ${token}` } }),
                     fetch('/api/Groups', { headers: { 'Authorization': `Bearer ${token}` } })
@@ -100,11 +181,10 @@ function ChatPage() {
 
                 let unifiedList: ChatSession[] = [];
 
-                // A. Process Direct Messages
                 if (convRes.ok) {
                     const convData: ConversationDto[] = await convRes.json();
                     const dms: ChatSession[] = convData.map(c => ({
-                        id: c.otherUserUsername, // Unique ID for DMs is username
+                        id: c.otherUserUsername,
                         displayId: c.otherUserUsername,
                         name: c.otherUserUsername,
                         avatarUrl: c.otherUserProfilePictureUrl,
@@ -116,19 +196,16 @@ function ChatPage() {
                     unifiedList = [...unifiedList, ...dms];
                 }
 
-                // B. Process Groups
                 if (groupRes.ok) {
                     const groupData: GroupDto[] = await groupRes.json();
-                    // Filter only groups where user is a member (if API returns all)
                     const myGroups = groupData.filter(g => g.isUserMember);
-                    
                     const groups: ChatSession[] = myGroups.map(g => ({
-                        id: g.id, // Unique ID for Groups is Int ID
+                        id: g.id,
                         displayId: g.id,
                         name: g.name,
-                        avatarUrl: "", // Default group icon logic later
-                        lastMessage: "Group Chat", // You might want to fetch last message for groups too
-                        timestamp: new Date().toISOString(), // Placeholder if API doesn't send time
+                        avatarUrl: "", 
+                        lastMessage: "Group Chat", 
+                        timestamp: new Date().toISOString(),
                         type: 'group',
                         unreadCount: 0,
                         ownerUsername: g.ownerUsername,
@@ -136,10 +213,9 @@ function ChatPage() {
                     unifiedList = [...unifiedList, ...groups];
                 }
 
-                // Sort by latest activity
                 unifiedList.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-                // --- Handle Redirect from Profile (Start Chat) ---
+                // Handle Redirect
                 if (location.state?.targetUser) {
                     const target = location.state.targetUser;
                     const exists = unifiedList.find(c => c.type === 'private' && c.id === target.username);
@@ -147,7 +223,6 @@ function ChatPage() {
                     if (exists) {
                         setActiveChat(exists);
                     } else {
-                        // Create temp chat
                         const newChat: ChatSession = {
                             id: target.username,
                             displayId: target.username,
@@ -163,7 +238,6 @@ function ChatPage() {
                     }
                     window.history.replaceState({}, document.title);
                 } 
-                // Default select first
                 else if (unifiedList.length > 0 && !activeChat) {
                     setActiveChat(unifiedList[0]);
                 }
@@ -179,7 +253,7 @@ function ChatPage() {
     }, [location.state]);
 
 
-    // --- 2. SignalR Connection Logic (Dynamic Join) ---
+    // --- SignalR Connection ---
     useEffect(() => {
         if (!activeChat) return;
 
@@ -194,18 +268,11 @@ function ChatPage() {
         const initSignalR = async () => {
             try {
                 await newConnection.start();
-                console.log("✅ SignalR Connected");
-
-                // --- DYNAMIC JOIN LOGIC ---
+                
                 if (activeChat.type === 'private') {
-                    // For DM: Send Username
                     await newConnection.invoke("JoinChat", activeChat.id as string);
-                    console.log(`Joined Private Chat: ${activeChat.id}`);
-                } 
-                else if (activeChat.type === 'group') {
-                    // For Group: Send Group ID (int)
+                } else if (activeChat.type === 'group') {
                     await newConnection.invoke("JoinGroupChat", activeChat.id as number);
-                    console.log(`Joined Group Chat: ${activeChat.id}`);
                 }
 
             } catch (err) {
@@ -213,25 +280,18 @@ function ChatPage() {
             }
         };
 
-        // --- LISTENERS ---
-        
-        // 1. Direct Message Listener
         newConnection.on("ReceiveDirectMessage", (message: MessageDto) => {
             if (activeChat.type === 'private' && (message.senderUsername === activeChat.id || message.isMine)) {
                 addMessageToState(message);
             }
         });
 
-        // 2. Group Message Listener (NEW)
         newConnection.on("ReceiveGroupMessage", (message: MessageDto) => {
-            // Check if this message belongs to the active group
-            // (message doesn't have groupId usually, relying on connection room)
             if (activeChat.type === 'group') {
                 addMessageToState(message);
             }
         });
 
-        // 3. Deletion Listeners
         newConnection.on("MessageDeleted", ({ messageId }) => removeMessageFromState(messageId));
         newConnection.on("GroupMessageDeleted", ({ messageId }) => removeMessageFromState(messageId));
 
@@ -242,10 +302,8 @@ function ChatPage() {
             newConnection.stop();
         };
 
-    }, [activeChat]); // Re-connects when switching chats (simplest approach)
+    }, [activeChat]);
 
-
-    // --- 3. Helpers for State ---
     const addMessageToState = (msg: MessageDto) => {
         setMessages(prev => {
             if (prev.some(m => m.id === msg.id)) return prev;
@@ -257,8 +315,7 @@ function ChatPage() {
         setMessages(prev => prev.filter(m => m.id !== id));
     };
 
-
-    // --- 4. Fetch Messages for Active Chat ---
+    // --- Fetch Messages ---
     useEffect(() => {
         if (!activeChat) return;
 
@@ -293,13 +350,13 @@ function ChatPage() {
         fetchMessages();
     }, [activeChat]);
 
-    // Auto-scroll
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
 
-    // --- 5. Send Message ---
+    // --- Actions ---
+
     const handleSendMessage = async () => {
         if (!inputText.trim() || !activeChat) return;
 
@@ -307,13 +364,11 @@ function ChatPage() {
         const tempId = Date.now();
         const token = sessionStorage.getItem("userToken");
 
-        // Optimistic UI
         const optimisticMsg: MessageDto = {
             id: tempId,
             content: textToSend,
             createdAt: new Date().toISOString(),
             isMine: true,
-            // Group messages use 'username', DM use 'senderUsername'. Hack to show locally:
             senderUsername: "Me", 
             username: "Me" 
         };
@@ -323,7 +378,6 @@ function ChatPage() {
 
         try {
             let url = "";
-            
             if (activeChat.type === 'private') {
                 url = `/api/DirectMessages/send/${activeChat.id}`;
             } else {
@@ -341,22 +395,49 @@ function ChatPage() {
 
             if (!res.ok) throw new Error("Failed to send");
 
-            // SignalR will update the real message, we rely on duplicate check in addMessageToState
-
         } catch (e) {
             console.error("Send error:", e);
-            setMessages(prev => prev.filter(m => m.id !== tempId)); // Rollback
+            setMessages(prev => prev.filter(m => m.id !== tempId)); 
             setInputText(textToSend);
             alert("Failed to send message");
         }
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') handleSendMessage();
+    const handleEditMessage = async (messageId: number, newContent: string) => {
+        if (!activeChat) return;
+        const token = sessionStorage.getItem("userToken");
+
+        try {
+            let url = "";
+            if (activeChat.type === 'private') {
+                url = `/api/DirectMessages/${activeChat.id}/${messageId}`;
+            } else {
+                url = `/api/Groups/${activeChat.id}/messages/${messageId}`;
+            }
+
+            const res = await fetch(url, {
+                method: 'PUT',
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content: newContent })
+            });
+
+            if (res.ok) {
+                setMessages(prev => prev.map(m => 
+                    m.id === messageId ? { ...m, content: newContent } : m
+                ));
+            } else {
+                console.error("Failed to edit message");
+            }
+        } catch (e) {
+            console.error("Edit error:", e);
+        }
     };
 
-    const handlePlusSignPress = () => {
-        setIsGroupModalOpen(true);
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') handleSendMessage();
     };
 
     const handleCreateGroup = async () => {
@@ -382,10 +463,8 @@ function ChatPage() {
             });
 
             if (!res.ok) throw new Error("Failed to create group");
-            
-            const data = await res.json(); // Usually returns { message, groupId }
+            const data = await res.json(); 
 
-            // Create a temp chat object to add to the list immediately
             const newGroupChat: ChatSession = {
                 id: data.groupId,
                 displayId: data.groupId,
@@ -394,15 +473,13 @@ function ChatPage() {
                 lastMessage: "Group created",
                 timestamp: new Date().toISOString(),
                 type: 'group',
-                unreadCount: 0
+                unreadCount: 0,
+                ownerUsername: currentUsername
             };
 
-            // Add to top of list and close modal
             setChatList(prev => [newGroupChat, ...prev]);
             setActiveChat(newGroupChat);
             setIsGroupModalOpen(false);
-            
-            // Reset form
             setNewGroupName("");
             setNewGroupDesc("");
 
@@ -415,9 +492,8 @@ function ChatPage() {
     };
 
     const handleDeleteGroup = async (e: React.MouseEvent, groupId: number) => {
-        e.stopPropagation(); // Prevent opening the chat when clicking delete
-        
-        if (!window.confirm("Are you sure you want to delete this group? This cannot be undone.")) return;
+        e.stopPropagation();
+        if (!window.confirm("Are you sure you want to delete this group?")) return;
 
         const token = sessionStorage.getItem("userToken");
         try {
@@ -427,7 +503,6 @@ function ChatPage() {
             });
 
             if (res.ok) {
-                // Remove from UI immediately
                 setChatList(prev => prev.filter(c => !(c.type === 'group' && c.id === groupId)));
                 if (activeChat?.id === groupId) setActiveChat(null);
             } else {
@@ -439,14 +514,16 @@ function ChatPage() {
         }
     };
 
-
-    // --- RENDER ---
+    // --- Render ---
     return (
         <div className="chat-layout">
             <aside className="chat-sidebar">
                 <div className="sidebar-header">
                     <h2>Messages</h2>
-                    {/* ... Search ... */}
+                    <div className="search-bar">
+                        <FontAwesomeIcon icon={faMagnifyingGlass} className="search-icon"/>
+                        <input type="text" placeholder="Search..." />
+                    </div>
                 </div>
 
                 <div className="conversation-list">
@@ -493,7 +570,7 @@ function ChatPage() {
                 </div>
                 <button 
                     className="new-chat-floating-btn"
-                    onClick={() => handlePlusSignPress()}
+                    onClick={() => setIsGroupModalOpen(true)}
                 >
                     <FontAwesomeIcon icon={faPlus} />
                 </button>
@@ -527,41 +604,47 @@ function ChatPage() {
                             {isLoadingMessages && <div className="loading-msg">Loading...</div>}
                             
                             {messages.map((msg) => (
-                                <div key={msg.id} className={`message-row ${msg.isMine ? 'me' : 'them'}`}>
-                                    {!msg.isMine && (
-                                        <div className="msg-sender-info">
-                                            {/* Show Avatar */}
-                                            <img 
-                                                src={msg.senderProfilePictureUrl || msg.profilePictureUrl || "/assets/img/no_user.png"} 
-                                                alt="avatar" 
-                                                className="msg-avatar" 
-                                            />
-                                        </div>
-                                    )}
-                                    <div className="message-content">
-                                        {/* In groups, show the name of the person talking */}
-                                        {activeChat.type === 'group' && !msg.isMine && (
-                                            <span className="msg-sender-name">{msg.senderUsername || msg.username}</span>
-                                        )}
-
-                                        <div className="message-bubble">{msg.content}</div>
-                                        <span className="message-time">{formatTime(msg.createdAt)}</span>
-                                    </div>
-                                </div>
+                                <MessageItem 
+                                    // FIX: Add msg.content to the key. 
+                                    // This forces React to reset the component when the message content changes.
+                                    key={`${msg.id}-${msg.content}`} 
+                                    msg={msg}
+                                    activeChat={activeChat}
+                                    formatTime={formatTime}
+                                    onEditMessage={handleEditMessage}
+                                />
                             ))}
                             <div ref={messagesEndRef} />
                         </div>
 
                         <div className="chat-input-area">
-                           {/* ... Same Input Area ... */}
-                           <input 
-                                type="text" 
-                                placeholder={activeChat.type === 'group' ? "Message group..." : "Type a message..."}
-                                value={inputText}
-                                onChange={(e) => setInputText(e.target.value)}
-                                onKeyDown={handleKeyDown}
-                            />
-                            <button className="send-btn" onClick={handleSendMessage}>
+                            <div className="input-actions-left">
+                                <button className="action-icon-btn" title="Attach file">
+                                    <FontAwesomeIcon icon={faPaperclip} />
+                                </button>
+                                <button className="action-icon-btn" title="Upload image">
+                                    <FontAwesomeIcon icon={faImage} />
+                                </button>
+                            </div>
+
+                            <div className="input-wrapper">
+                                <input 
+                                    type="text" 
+                                    placeholder={activeChat.type === 'group' ? `Message ${activeChat.name}...` : "Type a message..."}
+                                    value={inputText}
+                                    onChange={(e) => setInputText(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                />
+                                <button className="smiley-icon" title="Emoji">
+                                    <FontAwesomeIcon icon={faFaceSmile} />
+                                </button>
+                            </div>
+
+                            <button 
+                                className={`send-btn ${inputText.trim() ? 'active' : ''}`} 
+                                onClick={handleSendMessage}
+                                disabled={!inputText.trim()}
+                            >
                                 <FontAwesomeIcon icon={faPaperPlane} />
                             </button>
                         </div>
@@ -571,9 +654,8 @@ function ChatPage() {
                 )}
             </main>
 
-            {/* --- MODAL OVERLAY --- */}
             {isGroupModalOpen && (
-                <div className="modal-overlay">
+                <div className="modal-overlay-x">
                     <div className="modal-content">
                         <div className="modal-header">
                             <h3>Create New Group</h3>
@@ -601,17 +683,8 @@ function ChatPage() {
                             </div>
                         </div>
                         <div className="modal-footer">
-                            <button 
-                                className="cancel-btn" 
-                                onClick={() => setIsGroupModalOpen(false)}
-                            >
-                                Cancel
-                            </button>
-                            <button 
-                                className="create-btn" 
-                                onClick={handleCreateGroup}
-                                disabled={isCreatingGroup}
-                            >
+                            <button className="cancel-btn" onClick={() => setIsGroupModalOpen(false)}>Cancel</button>
+                            <button className="create-btn" onClick={handleCreateGroup} disabled={isCreatingGroup}>
                                 {isCreatingGroup ? "Creating..." : "Create Group"}
                             </button>
                         </div>

@@ -219,6 +219,69 @@ namespace Backend.Controllers
             });
         }
 
+        // PUT api/DirectMessages/{otherUsername}/{messageId}
+        [HttpPut("{otherUsername}/{messageId}")]
+        public async Task<IActionResult> EditMessage(string otherUsername, int messageId, [FromBody] SendDirectMessageDTO dto)
+        {
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(currentUserId)) return Unauthorized();
+
+            // 1. Fetch the message first to verify existence and ownership
+            var message = await _context.DirectMessages.FindAsync(messageId);
+
+            if (message == null) return NotFound(new { error = "Message not found." });
+
+            // 2. Verify Ownership
+            if (message.SenderId != currentUserId)
+            {
+                return StatusCode(403, new { error = "You can only edit your own messages." });
+            }
+
+            // 3. Verify Context (Conversation integrity)
+            var otherUser = await _userManager.FindByNameAsync(otherUsername);
+            if (otherUser == null || message.ReceiverId != otherUser.Id)
+            {
+                return BadRequest(new { error = "Message does not belong to this conversation." });
+            }
+
+            var conversationId = GenerateConversationId(currentUserId, otherUser.Id);
+
+            // ==================================================================================
+            // LOGIC CHANGE: If content is empty/whitespace -> DELETE the message
+            // ==================================================================================
+            if (string.IsNullOrWhiteSpace(dto.Content))
+            {
+                _context.DirectMessages.Remove(message);
+                await _context.SaveChangesAsync();
+
+                // Notify SignalR that the message was DELETED
+                // Matching the frontend signature: ({ messageId }) => ...
+                await _hubContext.Clients.Group(conversationId).SendAsync("MessageDeleted", new { messageId = messageId });
+
+                return Ok(new { message = "Message deleted because content was empty." });
+            }
+
+            // ==================================================================================
+            // OTHERWISE -> UPDATE the message
+            // ==================================================================================
+            if (dto.Content.Length > 500)
+                return BadRequest(new { error = "Content too long." });
+
+            message.Content = dto.Content.Trim();
+
+            _context.DirectMessages.Update(message);
+            await _context.SaveChangesAsync();
+
+            // Notify SignalR that the message was EDITED
+            await _hubContext.Clients.Group(conversationId).SendAsync("MessageEdited", new
+            {
+                id = message.Id,
+                content = message.Content
+            });
+
+            return Ok(new { message = "Message updated successfully", content = message.Content });
+        }
+
         [HttpDelete("{messageId}")]
         public async Task<IActionResult> DeleteMessage(int messageId)
         {

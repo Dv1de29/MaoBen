@@ -118,3 +118,290 @@
 .btn-join:hover {
   background-color: #0b5ed7;
 }
+
+
+
+/* Add this to GroupManagePage.css */
+
+.btn-kick {
+  background-color: #dc3545; /* Red warning color */
+  color: white;
+  border: 1px solid #b02a37;
+}
+
+.btn-kick:hover {
+  background-color: #bb2d3b;
+  box-shadow: 0 0 8px rgba(220, 53, 69, 0.4);
+}
+
+
+
+
+/* Add to GroupManagePage.css */
+
+.editable-input {
+  background-color: transparent;
+  border: 1px solid transparent; /* Invisible border by default */
+  color: #ffffff;
+  padding: 4px 8px;
+  border-radius: 6px;
+  width: 100%;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  outline: none;
+}
+
+/* Specific font sizes to match previous h1 and p */
+.input-name {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.input-desc {
+  font-size: 1rem;
+  color: #adb5bd;
+  resize: none; /* If using textarea */
+}
+
+/* When the user clicks inside (Focus state) */
+.editable-input:focus {
+  background-color: #2c3036;
+  border: 1px solid #495057;
+  color: #fff;
+}
+
+/* The Commit Save Button */
+.btn-save-changes {
+  margin-top: 10px;
+  background-color: #0d6efd;
+  color: white;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-save-changes:hover {
+  background-color: #0b5ed7;
+}
+
+
+
+
+/* ... existing css ... */
+
+/* DANGER ZONE: Bottom Center */
+.danger-zone {
+  margin-top: 4rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+  border-top: 1px dashed #495057; /* Separator line */
+}
+
+.btn-delete-group {
+  background-color: #340c0f; /* Very dark red background */
+  color: #ff6b6b; /* Bright red text */
+  border: 1px solid #fa5252;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s ease;
+}
+
+.btn-delete-group:hover {
+  background-color: #c92a2a; /* Brighter red on hover */
+  color: white;
+  box-shadow: 0 0 15px rgba(255, 0, 0, 0.4);
+}
+
+
+
+
+
+/* Add to ProfilePage.css */
+
+/* Modal Overlay */
+.modal-overlay-xx {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw !important;
+    min-width: 100vw !important;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.7); /* Dark semi-transparent background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+/* Modal Box */
+.modal-content {
+    background-color: #262626; /* Dark mode card color */
+    color: white;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Header */
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #363636;
+    padding-bottom: 10px;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: #a8a8a8;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.close-btn:hover {
+    color: white;
+}
+
+/* Body (Textarea) */
+.modal-body .text-input-modal {
+    width: 100%;
+    background-color: #121212;
+    border: 1px solid #363636;
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    resize: none;
+    font-family: inherit;
+    font-size: 1rem;
+    outline: none;
+}
+
+.modal-body textarea:focus {
+    border-color: #4dabf7; /* Your primary blue/accent color */
+}
+
+/* Footer (Send Button) */
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.modal-footer .primary-button {
+    /* Reusing your existing button class, ensuring flex alignment */
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.modal-footer .primary-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+
+
+
+/* Add to GroupsPage.css */
+
+/* Ensure the card is relative so absolute children position correctly */
+.group-card {
+  position: relative; 
+  /* ... existing styles ... */
+}
+
+/* The red leave/delete button */
+.btn-icon-leave {
+  position: absolute;
+  bottom: 15px;
+  right: 15px;
+  background: transparent;
+  border: none;
+  color: #dc3545; /* Bootstrap danger red */
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background-color 0.2s, transform 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon-leave:hover {
+  background-color: rgba(220, 53, 69, 0.1); /* Subtle red background on hover */
+  transform: scale(1.1);
+}
+
+
+
+
+
+/* Primary Button Design */
+.primary-button {
+  background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); /* Vibrant Blue Gradient */
+  color: #ffffff;
+  border: none;
+  border-radius: 8px; /* Slightly rounded corners */
+  padding: 10px 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px; /* Space between text and icon */
+  box-shadow: 0 4px 6px rgba(14, 165, 233, 0.2); /* Subtle glow */
+}
+
+.primary-button:hover:not(:disabled) {
+  transform: translateY(-1px); /* Slight lift */
+  box-shadow: 0 6px 12px rgba(14, 165, 233, 0.3); /* Stronger glow */
+  filter: brightness(1.1); /* Slightly brighter */
+}
+
+.primary-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);
+}
+
+.primary-button:disabled {
+  background: #3f3f46; /* Dark grey for disabled state */
+  color: #a1a1aa; /* Muted text */
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 0.7;
+}
+
+/* Specific override for modal footer if needed */
+.modal-footer .primary-button {
+  min-width: 100px; /* Ensure button isn't too narrow */
+}

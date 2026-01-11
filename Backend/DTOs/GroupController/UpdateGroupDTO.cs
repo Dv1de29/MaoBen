@@ -1,0 +1,8 @@
+﻿namespace Backend.DTOs.GroupController
+{
+    public class UpdateGroupDTO
+    {
+        public string Name { get; set; }
+        public string Description { get; set; }
+    }
+}

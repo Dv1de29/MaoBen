@@ -1,0 +1,135 @@
+/* GroupManagePage.css */
+
+.manage-container {
+  background-color: #121418;
+  min-height: 100vh;
+  padding: 2rem;
+  color: #e0e0e0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.manage-header {
+  border-bottom: 1px solid #343a40;
+  padding-bottom: 20px;
+  margin-bottom: 30px;
+}
+
+.manage-header h1 {
+  color: white;
+  margin: 0;
+  font-size: 2rem;
+}
+
+.manage-header p {
+  color: #adb5bd;
+  margin-top: 8px;
+  font-size: 1rem;
+}
+
+.section-header {
+  color: #f0f0f0;
+  font-size: 1.4rem;
+  margin-bottom: 15px;
+  border-left: 4px solid #0d6efd; /* Blue accent */
+  padding-left: 12px;
+}
+
+/* --- Layout for Two Columns --- */
+.manage-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+@media (min-width: 900px) {
+  .manage-grid {
+    grid-template-columns: 1fr 1fr; /* Side by side on large screens */
+  }
+}
+
+/* --- Lists Styling --- */
+.manage-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.manage-item {
+  background-color: #212529;
+  border: 1px solid #343a40;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.user-flex {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #343a40;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-weight: 600;
+  color: white;
+  font-size: 0.95rem;
+}
+
+.user-role {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+/* --- Action Buttons --- */
+.actions-row {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-icon:hover {
+  opacity: 0.8;
+}
+
+.btn-accept {
+  background-color: #198754; /* Green */
+  color: white;
+}
+
+.btn-reject {
+  background-color: #dc3545; /* Red */
+  color: white;
+}
+
+.empty-state {
+  color: #6c757d;
+  font-style: italic;
+  padding: 10px 0;
+}

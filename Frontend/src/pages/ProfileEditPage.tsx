@@ -148,43 +148,49 @@ const EditProfilePage = () => {
         }
     }
 
-    const handleSubmit = (e: FormEvent) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         
-        const UpdateUser = async () => {
-            try{
-                const token = sessionStorage.getItem("userToken");
+        try {
+            const token = sessionStorage.getItem("userToken");
 
-                const res = await fetch(`/api/Profile`, {
-                    method: "PUT",
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        username: formData.userName,
-                        privacy: formData.privacy,
-                        description: formData.description,
-                        profilePictureUrl: formData.profile_image,
-                    })
-                });
+            const res = await fetch(`/api/Profile`, {
+                method: "PUT",
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: formData.userName,
+                    privacy: formData.privacy,
+                    description: formData.description,
+                    profilePictureUrl: formData.profile_image,
+                })
+            });
 
-                if ( !res.ok ){
-                    throw new Error(`Fetching error: ${res.status}, ${res.statusText}`);
-                }
-
-                console.log(res)
-
-                await refreshUser();
-
-                navigate(-1); 
-
-            } catch(e){
-                console.error("Error fetching: ", e);
+            // --- CHANGED LOGIC START ---
+            if (!res.ok) {
+                // 1. Read the response body
+                const errorData = await res.json();
+                
+                // 2. Extract the error message (handling your colleague's format)
+                const errorMessage = errorData.error || "Failed to update profile";
+                
+                // 3. Alert the user
+                alert(errorMessage);
+                return; // Stop execution
             }
-        }
+            // --- CHANGED LOGIC END ---
 
-        UpdateUser()
+            // Success path
+            console.log("Profile updated successfully");
+            await refreshUser();
+            navigate(-1); 
+
+        } catch(e) {
+            console.error("Network or Parsing Error: ", e);
+            alert("An unexpected error occurred. Please try again.");
+        }
     };
 
     return (

@@ -89,29 +89,58 @@ const Post = memo(({ post, onToggleLike }: PostProps) => {
     };
 
     const handlePostComment = async () => {
-        if ( myRole === "Guest" ){
+        if (myRole === "Guest") {
             alert("You must be signed in to interact with posts");
             return;
         }
 
-
         const token = sessionStorage.getItem("userToken");
         const commentPayload: CommentPostDTO = { postId: post.id, content: inputCommentValue };
+        
         try {
             const res = await fetch(`/api/Comments`, {
                 method: "POST",
-                headers: { 'Authorization': `Bearer ${token}`, "Content-Type": "application/json" },
+                headers: { 
+                    'Authorization': `Bearer ${token}`, 
+                    "Content-Type": "application/json" 
+                },
                 body: JSON.stringify(commentPayload)
             });
-            if (!res.ok) throw new Error(`Response Error`);
+
+            // --- ROBUST ERROR HANDLING START ---
+            if (!res.ok) {
+                const responseBody = await res.text(); // 1. Read as text first to avoid crashing
+                
+                try {
+                    // 2. Try to parse that text as JSON
+                    const errorData = JSON.parse(responseBody);
+                    // If successful, use the specific field
+                    const errorMessage = errorData.error || errorData.message || responseBody;
+                    alert(errorMessage);
+                } catch (e) {
+                    // 3. If parsing fails, it's just a plain text message from the server
+                    alert(responseBody); 
+                }
+                return; 
+            }
+            // --- ROBUST ERROR HANDLING END ---
+
             const data: CommentApiType = await res.json();
+            
             const newComment: CommentApiType = {
-                id: data.id, content: data.content, createdAt: data.createdAt,
-                username: data.username, profilePictureUrl: data.profilePictureUrl,
+                id: data.id, 
+                content: data.content, 
+                createdAt: data.createdAt,
+                username: data.username, 
+                profilePictureUrl: data.profilePictureUrl,
             };
+            
             setDisplayComments(prev => [...prev, newComment]);
             setInputCommentValue("");
-        } catch (e) { console.error(e); }
+            
+        } catch (e) { 
+            console.error("Network error:", e);
+        }
     };
 
     function getTimeAgo(dateString: string): string {

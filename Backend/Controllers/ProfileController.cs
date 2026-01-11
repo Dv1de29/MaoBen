@@ -12,7 +12,7 @@ namespace Backend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    
     public class ProfileController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> _userManager;
@@ -29,6 +29,7 @@ namespace Backend.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         public async Task<IActionResult> GetProfile()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -81,6 +82,7 @@ namespace Backend.Controllers
 
 
         [HttpPut]
+        [Authorize]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileUserDTO dto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -149,6 +151,7 @@ namespace Backend.Controllers
         }
 
         [HttpDelete]
+        [Authorize]
         public async Task<IActionResult> DeleteAccount()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -199,6 +202,7 @@ namespace Backend.Controllers
         [HttpPost("upload_image")]
         [Consumes("multipart/form-data")]
         [ApiExplorerSettings(IgnoreApi = true)]
+        [Authorize]
         public async Task<IActionResult> UploadImage(IFormFile image_path)
         {
             if (image_path == null || image_path.Length == 0)

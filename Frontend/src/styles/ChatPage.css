@@ -417,7 +417,7 @@
 /* ===========================
    MODAL STYLES
    =========================== */
-.modal-overlay {
+.modal-overlay-x {
     position: fixed;
     top: 0;
     left: 0;
@@ -602,4 +602,171 @@
     flex: 1;
     min-width: 0;
     /* padding-right is handled by parent padding-right now */
+}
+
+
+
+
+
+
+
+
+/* ===========================
+   MODERN INPUT AREA
+   =========================== */
+
+.chat-input-area {
+    padding: 20px 24px;
+    background-color: #151f2e; /* Matches header */
+    border-top: 1px solid #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: relative;
+    z-index: 5;
+}
+
+/* --- Left Actions (Attachments) --- */
+.input-actions-left {
+    display: flex;
+    gap: 8px;
+}
+
+.action-icon-btn {
+    background: transparent;
+    border: none;
+    color: #64748b; /* Muted slate */
+    font-size: 18px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-icon-btn:hover {
+    color: #cbd5e1; /* Lighter on hover */
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* --- Input Wrapper (The Pill) --- */
+.input-wrapper {
+    flex: 1;
+    background-color: #1e293b; /* Distinct from container bg */
+    border-radius: 24px; /* Pill shape */
+    padding: 4px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid transparent; /* Invisible border for focus state */
+    transition: all 0.2s ease;
+    min-height: 48px;
+}
+
+/* Focus effect: Subtle blue glow */
+.input-wrapper:focus-within {
+    border-color: #0ea5e9; 
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+    background-color: #1a2436;
+}
+
+.input-wrapper input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #f1f5f9; /* White text */
+    outline: none;
+    font-size: 15px;
+    font-family: inherit;
+    padding: 10px 0;
+}
+
+.input-wrapper input::placeholder {
+    color: #64748b;
+}
+
+/* Smiley Icon inside the input */
+.smiley-icon {
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+}
+
+.smiley-icon:hover {
+    color: #fbbf24; /* Yellow for emoji hover */
+}
+
+/* --- Send Button --- */
+.send-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background-color: #1e293b; /* Disabled state: dark grey */
+    color: #64748b;
+    cursor: default;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Active State (When text is typed) */
+.send-btn.active {
+    background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); /* Brand Gradient */
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+    transform: scale(1);
+}
+
+.send-btn.active:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
+}
+
+.send-btn.active:active {
+    transform: scale(0.95);
+}
+
+
+
+
+
+
+
+/* ... Add to ChatPage.css ... */
+
+/* The editable input inside the bubble */
+.editable-msg-input {
+    background-color: transparent;
+    border: none; /* No border by default */
+    color: inherit; /* Inherits white from the bubble */
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 15px;
+    line-height: 1.4;
+    width: 100%;
+    min-width: 100px;
+    outline: none;
+    resize: none; /* No resize handle */
+    padding: 0;
+    margin: 0;
+    display: block;
+    overflow: hidden;
+}
+
+/* Optional: Visual cue when the user clicks/focuses the text */
+.editable-msg-input:focus {
+    background-color: rgba(0, 0, 0, 0.1); /* Slight darken on focus */
+    border-radius: 4px;
+    cursor: text;
 }

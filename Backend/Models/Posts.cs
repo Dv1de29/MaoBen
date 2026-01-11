@@ -12,7 +12,7 @@ namespace Backend.Models
 
         public int Nr_Comms { get; set; }
 
-        public string Image_path { get; set; }
+        public string? Image_path { get; set; }
 
         public string Description { get; set; }
 

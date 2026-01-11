@@ -37,7 +37,6 @@ function PostContainer(){
     const observerTargetRef = useRef<HTMLDivElement>(null);
     const initialLoadRef = useRef(true);
 
-    console.log(isGeust)
 
     const fetchMyPosts = useCallback(async () => {
         console.log("Entered fetched posts")
@@ -46,7 +45,7 @@ function PostContainer(){
 
         const skipValue = (page - 1) * ITEMS_PER_PAGE;
 
-        const token = sessionStorage.getItem("userToken");
+        const token = sessionStorage.getItem("userToken") || "";
 // ${isGeust ? "" : "/feed"}
         try{
             const res = await fetch(`/api/Posts${isGeust ? "" : "/feed"}?count=${ITEMS_PER_PAGE}&skip=${skipValue}`, {
@@ -105,10 +104,14 @@ function PostContainer(){
         setLoading(true);
 
         const skipValue = (page - 1) * ITEMS_PER_PAGE;
-
+        const token = sessionStorage.getItem("userToken");
 
         try{
-            const res = await fetch(`/api/Posts/?count=${ITEMS_PER_PAGE}&skip=${0}`)
+            const res = await fetch(`/api/Posts/?count=${ITEMS_PER_PAGE}&skip=${0}`, {
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : ""
+                }
+            })
     
             if ( !res.ok ){
                 if ( res.status === 204 || res.status === 404 || res.status === 400){
@@ -119,7 +122,6 @@ function PostContainer(){
                 throw new Error(`Response error: ${res.status},${res.statusText}`)
             }
 
-            console.log(res)
 
             const data: PostApiType[] = await res.json();
 
@@ -222,10 +224,29 @@ function PostContainer(){
             headers: {
                 'Authorization': `Bearer ${token}`,
             }
-        }).catch(e => {
+        })
+        .then(res => console.log(res))
+        .catch(e => {
             console.error("HandleLike Error: ", e);
             // Optional: Revert UI state here if needed
         });
+        console.log("HAS LIEKD")
+
+
+        fetch(`/api/Likes/check/${id}`, {
+            method: "GET",
+            keepalive: true, // Critical for refresh
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
+        })
+        .then(res => console.log(res))
+        .then(data => console.log(data))
+        .catch(e => {
+            console.error("HandleLike Error: ", e);
+            // Optional: Revert UI state here if needed
+        });
+        
 
     }, [])
 

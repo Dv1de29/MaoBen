@@ -20,6 +20,7 @@ import PostModal from './components/PostModal';
 import ProtectedRoute from './components/ProtectedRotes';
 
 import EditPostPage from './pages/EditPost';
+import GroupManagePage from './pages/GroupManagePage';
 
 
 function Layout(){
@@ -74,7 +75,12 @@ function Layout(){
                             <ProtectedRoute children={<ChatPage />}/>
                         }/>
 
-                        <Route path='/groups' element={<GroupsPage />}/>
+                        <Route path='/groups' element={
+                            <ProtectedRoute children={<GroupsPage />} />}
+                        />
+                        <Route path='/groups/manage/:id' element={
+                            <ProtectedRoute children={<GroupManagePage />} />
+                        } />
 
                         {/* FALLBACK WHEN I REFRESH WITH PAGE */}
                         <Route path='/p/:post_id' element={<PostPage />}/>

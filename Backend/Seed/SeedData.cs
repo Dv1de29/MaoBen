@@ -2,134 +2,114 @@
 using Backend.DTOs;
 using Backend.Models;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Seed
 {
+    // Helper record
+    public record UserSeedData(string FirstName, string LastName, string Username, string Email, string Password, string? ProfilePictureUrl = null);
+
     public static class SeedData
     {
         public static async Task SeedUsersAsync(IServiceProvider serviceProvider)
         {
-            // Get the required services
             var context = serviceProvider.GetRequiredService<AppDbContext>();
             var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
+            // 1. Ensure Roles Exist
+            string[] roleNames = { "User", "Admin" };
+            foreach (var roleName in roleNames)
+            {
+                if (!await roleManager.RoleExistsAsync(roleName))
+                {
+                    await roleManager.CreateAsync(new IdentityRole(roleName));
+                }
+            }
 
-
-            // Define the 5 users to be created
+            // 2. Define Users
             var usersToSeed = new List<UserSeedData>
             {
+                new UserSeedData("Admin", "System", "admin_master", "admin@test.com", "AdminPass123!", "be_assets/img/ben1.jpg"),
                 new UserSeedData("David", "Barbu", "david_florian", "david@test.com", "David29!", "be_assets/img/ben1.jpg"),
-                new UserSeedData("Ionut", "FIlote", "filote_ionut", "fifi@test.com", "Fifi7cm!"),
+                new UserSeedData("Ionut", "FIlote", "filote_ionut", "fifi@test.com", "Fifi7cm!", "be_assets/img/download.jpg"),
                 new UserSeedData("Alex", "Popescu", "alex.p", "alex.p@example.com", "SecurePwd1!", "be_assets/img/ben1.jpg"),
                 new UserSeedData("Maria", "Ionescu", "maria.i", "maria.i@example.com", "SecurePwd2!", "be_assets/img/ben1.jpg"),
-                new UserSeedData("Ionut", "Vasilescu", "ionut.v", "ionut.v@example.com", "SecurePwd3!", "be_assets/img/ben1.jpg"),
+                new UserSeedData("Ionut", "Vasilescu", "ionut.v", "ionut.v@example.com", "SecurePwd3!", "be_assets/img/download.jpg"),
                 new UserSeedData("Elena", "Gheorghe", "elena.g", "elena.g@example.com", "SecurePwd4!", "be_assets/img/ben1.jpg"),
-                new UserSeedData("Radu", "Dumitru", "radu.d", "radu.d@example.com", "SecurePwd5!", "be_assets/img/ben1.jpg"),
+                new UserSeedData("Radu", "Dumitru", "radu.d", "radu.d@example.com", "SecurePwd5!", "be_assets/img/download.jpg"),
             };
 
-           
-
+            // 3. Create Users
             foreach (var seedUser in usersToSeed)
             {
-                // 1. Check if the user already exists by email
                 if (await userManager.FindByEmailAsync(seedUser.Email) == null)
                 {
-                    // 2. Create the ApplicationUser object
                     var user = new ApplicationUser
                     {
                         FirstName = seedUser.FirstName,
                         LastName = seedUser.LastName,
                         UserName = seedUser.Username,
                         Email = seedUser.Email,
-                        EmailConfirmed = true, // To simulate a fully registered user
+                        EmailConfirmed = true,
                         Description = $"Profile for {seedUser.FirstName} {seedUser.LastName}",
-                        // The ProfilePictureUrl will use the default value you defined in ApplicationUser
+                        ProfilePictureUrl = seedUser.ProfilePictureUrl ?? "be_assets/img/no_user.png"
                     };
 
-                    // 3. Create the user and hash the password
                     var result = await userManager.CreateAsync(user, seedUser.Password);
 
                     if (result.Succeeded)
                     {
-                        // 4. Assign the default 'User' role as done in your Register logic
-                        await userManager.AddToRoleAsync(user, "User");
-                        // Note: Identity automatically assigns sequential IDs (GUIDs by default). 
-                        // To force specific integer IDs (1, 2, 3, 4, 5) requires customizing 
-                        // the IdentityUser class and using a specific database seeding approach (like Entity Framework's HasData), 
-                        // which bypasses UserManager for ID assignment but is not recommended 
-                        // for password hashing. The UserManager method is safer for passwords.
-                    }
-                    else
-                    {
-                        // Log or handle errors if user creation fails
-                        Console.WriteLine($"Error creating user {seedUser.Username}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                        if (seedUser.Username == "admin_master")
+                            await userManager.AddToRoleAsync(user, "Admin");
+                        else
+                            await userManager.AddToRoleAsync(user, "User");
                     }
                 }
             }
 
+            // 4. Seed 10 Posts for EVERY User
+            // We check if the database is empty of posts to avoid duplicating on every run
             if (!context.Posts.Any())
             {
-                // Fetch the REAL users from DB to get valid GUIDs
-                var userDavid = await userManager.FindByNameAsync("david_florian");
-                var userIonut = await userManager.FindByNameAsync("filote_ionut");
-                var userMaria = await userManager.FindByNameAsync("maria.i");
+                // Fetch all users we just created/confirmed
+                var allUsers = await userManager.Users.ToListAsync();
 
-                // Ensure users exist before trying to create posts for them
-                if (userDavid != null && userIonut != null && userMaria != null)
+                var postsList = new List<Posts>();
+                var random = new Random();
+
+                // List of sample images to rotate through
+                string[] sampleImages = {
+                    "/be_assets/img/ben1.jpg",
+                    "/be_assets/img/download.jpg",
+                    "/be_assets/img/ben1.jpg",
+                    "/be_assets/img/download.jpg"
+                };
+
+                foreach (var user in allUsers)
                 {
-                    var posts = new List<Posts>
+                    // Generate 10 posts for this specific user
+                    for (int i = 1; i <= 10; i++)
                     {
-                        // --- David's Posts ---
-                        new Posts {
-                            OwnerID = userDavid.Id, // Valid GUID from DB
-                            Nr_likes = 15,
-                            Nr_Comms = 2,
-                            Image_path = "/be_assets/img/ben1.jpg",
-                            Description = "First seeded post! Beautiful day. 🌲",
-                            Created = DateTime.UtcNow.AddDays(-10)
-                        },
-                        new Posts {
-                            OwnerID = userDavid.Id,
-                            Nr_likes = 250,
-                            Nr_Comms = 45,
-                            Image_path = "/be_assets/img/ben1.jpg",
-                            Description = "Coding late at night. 💻",
-                            Created = DateTime.UtcNow.AddDays(-2)
-                        },
+                        postsList.Add(new Posts
+                        {
+                            OwnerID = user.Id, // Link to the user
+                            Nr_likes = random.Next(0, 500), // Random likes between 0-500
+                            Nr_Comms = random.Next(0, 50),  // Random comments between 0-50
 
-                        // --- Ionut's Posts ---
-                        new Posts {
-                            OwnerID = userIonut.Id,
-                            Nr_likes = 50,
-                            Nr_Comms = 10,
-                            Image_path = "/be_assets/img/download.jpg",
-                            Description = "City lights view. ✨",
-                            Created = DateTime.UtcNow.AddDays(-5)
-                        },
-                         new Posts {
-                            OwnerID = userIonut.Id,
-                            Nr_likes = 30,
-                            Nr_Comms = 5,
-                            Image_path = "/be_assets/img/ben1.jpg",
-                            Description = "Sunset vibes. 🌅",
-                            Created = DateTime.UtcNow.AddDays(-20)
-                        },
+                            // Cycle through images or pick random
+                            Image_path = sampleImages[random.Next(sampleImages.Length)],
 
-                        // --- Maria's Posts ---
-                        new Posts {
-                            OwnerID = userMaria.Id,
-                            Nr_likes = 120,
-                            Nr_Comms = 25,
-                            Image_path = "/be_assets/img/download.jpg",
-                            Description = "New recipe attempt! 🍝",
-                            Created = DateTime.UtcNow.AddDays(-1)
-                        }
-                    };
+                            Description = $"{user.FirstName}'s post number {i}. This is automatically generated content to fill the database.",
 
-                    context.Posts.AddRange(posts);
-                    await context.SaveChangesAsync();
+                            // Spread dates out over the last 30 days
+                            Created = DateTime.UtcNow.AddDays(-random.Next(1, 30)).AddHours(random.Next(-12, 12))
+                        });
+                    }
                 }
+
+                context.Posts.AddRange(postsList);
+                await context.SaveChangesAsync();
             }
         }
     }
