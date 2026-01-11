@@ -80,9 +80,11 @@ function LoginPage() {
     };
 
     const tryGuest = () => {
+        
         if ( !sessionStorage.getItem("userRole") ){
             sessionStorage.setItem("userRole", "Guest");
         }
+        navigate("/");
     }
 
     return (
@@ -93,7 +95,7 @@ function LoginPage() {
                 
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
-                        <label htmlFor="email">Email Address or Usernmae</label>
+                        <label htmlFor="email">Email Address or Username</label>
                         <div className="input-container">
                             <input 
                             type="text" 
@@ -134,9 +136,17 @@ function LoginPage() {
                     <button type="submit" className="login-btn">Sign In</button>
                 </form>
 
-                <div className="login-footer">
-                    <p>Don't have an account? <Link to="/register">Sign up</Link></p>
-                    <p>Try as guest! <Link to={"/"} onClick={tryGuest}>Guest</Link></p>
+                <div className="login-divider">
+                    <span>or</span>
+                </div>
+
+                <div className="secondary-actions">
+                    <Link to="/register" className="btn-outline">
+                        Sign Up
+                    </Link>
+                    <button type="button" onClick={tryGuest} className="btn-ghost">
+                        Try as Guest
+                    </button>
                 </div>
                 
             </div>

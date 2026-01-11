@@ -122,21 +122,75 @@
 }
 
 
-.login-footer {
-  margin-top: 20px;
-  text-align: center;
-  font-size: 0.9rem;
-  color: #666;
+/* --- Separatorul vizual --- */
+.login-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 20px 0;
+    color: #666;
 }
 
-.login-footer a {
-  color: #007bff;
-  text-decoration: none;
-  font-weight: 500;
+.login-divider::before,
+.login-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #2b2b2b;
 }
 
-.login-footer a:hover {
-  text-decoration: underline;
+.login-divider:not(:empty)::before {
+    margin-right: .5em;
+}
+
+.login-divider:not(:empty)::after {
+    margin-left: .5em;
+}
+
+/* --- Container Acțiuni Secundare --- */
+.secondary-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Le punem unul lângă altul */
+    gap: 15px;
+    margin-top: 10px;
+}
+
+/* Stil de bază pentru butoanele noi */
+.btn-outline, .btn-ghost {
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Butonul de Sign Up - Outline Blue */
+.btn-outline {
+    background-color: transparent;
+    border: 1px solid #007bff;
+    color: #007bff;
+}
+
+.btn-outline:hover {
+    background-color: rgba(0, 123, 255, 0.1);
+    border-color: #0056b3;
+}
+
+/* Butonul de Guest - Subtle/Ghost */
+.btn-ghost {
+    background-color: #1a1a1a; /* Puțin mai deschis decât fundalul cardului */
+    border: 1px solid transparent;
+    color: #aaa;
+}
+
+.btn-ghost:hover {
+    background-color: #2b2b2b;
+    color: #eee;
 }
 
 .error-message{
@@ -165,4 +219,38 @@ footer {
   align-self: end;
   align-items: center;
   justify-content: center;
+}
+.field-error {
+    color: #ff4d4d;
+    font-size: 0.75rem;
+    margin-top: 5px;
+    font-weight: 500;
+    text-align: left;
+    /* Adăugăm o mică animație pentru un aspect fluid */
+    animation: slideDown 0.2s ease-out;
+}
+
+.input-error {
+    border-color: #ff4d4d !important;
+}
+
+/* Stil pentru erorile generale care nu s-au putut mapa pe un câmp specific */
+.error-message.general-error {
+    background-color: rgba(255, 77, 77, 0.1);
+    padding: 10px;
+    border-radius: 4px;
+    border-left: 4px solid #ff4d4d;
+    width: 100%;
+    margin: 15px 0;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Asigură-te că input-ul cu iconiță nu are textul acoperit de iconiță în caz de eroare */
+.toggle-password, .input-icon-fa {
+    cursor: pointer;
+    z-index: 2;
 }

@@ -29,8 +29,12 @@ namespace Backend.Controllers
 
             var existingUser = await _userManager.FindByEmailAsync(dto.Email);
             if (existingUser != null) return BadRequest(new { message = "Email is already in use." });
+            
+            if (string.IsNullOrWhiteSpace(dto.Username)) return BadRequest(new { message = "Username is required." });
 
             if (dto.Username.Contains('@')) return BadRequest(new { message = "Username cannot contain '@' character." });
+
+
 
             var existingUsername = await _userManager.FindByNameAsync(dto.Username);
             if (existingUsername != null) return BadRequest(new { message = "Username is already taken." });

@@ -313,8 +313,7 @@ namespace Backend.Controllers
                 IsMine = false // Frontend will calculate 'IsMine'
             };
 
-            // CHANGE 2: Use the "group_{id}" naming convention
-            // This ensures "group_10" doesn't collide with "user_10" or "conversation_10_11"
+            
             await _hubContext.Clients.Group($"group_{id}").SendAsync("ReceiveGroupMessage", messageDto);
 
             return Ok(new { message = "Message sent successfully." });
