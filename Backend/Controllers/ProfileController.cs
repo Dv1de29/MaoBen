@@ -134,7 +134,6 @@ namespace Backend.Controllers
            
             if (hasChanges)
             {
-                // UpdateAsync handles both the basic fields and the NormalizedUserName
                 var result = await _userManager.UpdateAsync(user);
                 if (!result.Succeeded) return BadRequest(result.Errors);
             }
