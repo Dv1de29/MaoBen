@@ -66,11 +66,6 @@ namespace Backend.Controllers
             {
                 canComment = true;
             }
-            //Admins can comment to any posts
-            else if (User.IsInRole("Admin"))
-            {
-                canComment = true;
-            }    
             else
             {
                 var isAcceptedFollower = await _context.UserFollows

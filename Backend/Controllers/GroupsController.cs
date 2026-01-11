@@ -364,8 +364,8 @@ namespace Backend.Controllers
             if (group == null)
                 return NotFound(new { error = "Group not found." });
 
-            if (message.UserId != currentUserId && group.OwnerId != currentUserId)
-                return StatusCode(403, new { error = "You can only edit your own messages unless you are an administrator." });
+            if (message.UserId != currentUserId)
+                return StatusCode(403, new { error = "You can only edit your own messages." });
 
             message.Content = dto.Content.Trim();
             _context.GroupMessages.Update(message);
