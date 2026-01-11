@@ -6,7 +6,7 @@ namespace Backend.Models
     {
         public int Id { get; set; }
 
-        public string OwnerID { get; set; }
+        public required string OwnerID { get; set; }
 
         public int Nr_likes { get; set; }
 

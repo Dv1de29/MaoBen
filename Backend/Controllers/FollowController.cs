@@ -1,5 +1,5 @@
 ﻿using Backend.Data;
-using Backend.DTOs; 
+using Backend.DTOs.FollowController;
 using Backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -23,20 +23,19 @@ namespace Backend.Controllers
             _userManager = userManager;
         }
 
-        // 1. POST: api/Follow/{targetUsername}
         [HttpPost("{targetUsername}")]
         public async Task<IActionResult> FollowUser(string targetUsername)
         {
             var currentUserIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             var currentUser = await _userManager.FindByIdAsync(currentUserIdString!);
-            if (currentUser == null) return BadRequest("Eroare la identificarea utilizatorului curent.");
+            if (currentUser == null) return BadRequest(new { error = "Error identifying the current user." });
 
             var targetUser = await _userManager.FindByNameAsync(targetUsername);
-            if (targetUser == null) return NotFound("Utilizatorul nu a fost găsit.");
+            if (targetUser == null) return NotFound(new { error = "User not found." });
 
             if (currentUser.Id == targetUser.Id)
-                return BadRequest("Nu te poți urmări singur.");
+                return BadRequest(new { error = "You cannot follow yourself." });
 
             var existingFollow = await _context.UserFollows
                 .FindAsync(currentUser.Id, targetUser.Id);
@@ -44,12 +43,11 @@ namespace Backend.Controllers
             if (existingFollow != null)
             {
                 if (existingFollow.Status == FollowStatus.Pending)
-                    return BadRequest($"Ai trimis deja o cerere către {targetUsername}.");
+                    return BadRequest(new { error = $"You have already sent a follow request to {targetUsername}." });
 
-                return BadRequest($"Urmărești deja utilizatorul {targetUsername}.");
+                return BadRequest(new { error = $"You are already following {targetUsername}." });
             }
 
-            // Logica de Privacy
             var status = targetUser.IsPrivate ? FollowStatus.Pending : FollowStatus.Accepted;
 
             var newFollow = new UserFollow
@@ -64,34 +62,33 @@ namespace Backend.Controllers
 
             if (status == FollowStatus.Accepted)
             {
-                currentUser.FollowingCount++; 
-                targetUser.FollowersCount++;  
+                currentUser.FollowingCount++;
+                targetUser.FollowersCount++;
             }
 
             await _context.SaveChangesAsync();
 
             if (status == FollowStatus.Pending)
-                return Ok(new { message = $"Cererea către {targetUsername} a fost trimisă.", status = "Pending" });
+                return Ok(new { message = $"Follow request sent to {targetUsername}.", status = "Pending" });
 
-            return Ok(new { message = $"Acum îl urmărești pe {targetUsername}.", status = "Accepted" });
+            return Ok(new { message = $"You are now following {targetUsername}.", status = "Accepted" });
         }
 
-        // 2. DELETE: api/Follow/unfollow/{targetUsername}
         [HttpDelete("unfollow/{targetUsername}")]
         public async Task<IActionResult> UnfollowUser(string targetUsername)
         {
             var currentUserIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             var currentUser = await _userManager.FindByIdAsync(currentUserIdString!);
-            if (currentUser == null) return BadRequest("Eroare utilizator curent.");
+            if (currentUser == null) return BadRequest(new { error = "Current user error." });
 
             var targetUser = await _userManager.FindByNameAsync(targetUsername);
-            if (targetUser == null) return NotFound("Utilizatorul nu există.");
+            if (targetUser == null) return NotFound(new { error = "The user does not exist." });
 
             var followRelation = await _context.UserFollows
                 .FindAsync(currentUser.Id, targetUser.Id);
 
-            if (followRelation == null) return NotFound($"Nu îl urmărești pe {targetUsername}.");
+            if (followRelation == null) return NotFound(new { error = $"You are not following {targetUsername}." });
 
             if (followRelation.Status == FollowStatus.Accepted)
             {
@@ -102,11 +99,9 @@ namespace Backend.Controllers
             _context.UserFollows.Remove(followRelation);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = $"Unfollow realizat pentru {targetUsername}." });
+            return Ok(new { message = $"Successfully unfollowed {targetUsername}." });
         }
 
-        // 3. GET: api/Follow/requests
-        // Aici nu se schimbă URL-ul, dar returnăm Username-ul celor care vor să ne urmărească
         [HttpGet("requests")]
         public async Task<IActionResult> GetPendingRequests()
         {
@@ -115,9 +110,8 @@ namespace Backend.Controllers
             var requests = await _context.UserFollows
                 .Where(f => f.TargetUserId == currentUserId && f.Status == FollowStatus.Pending)
                 .Include(f => f.SourceUser)
-                .Select(f => new FollowRequestDTO
+                .Select(f => new PendingRequestResponseDTO
                 {
-                    // Returnăm Username ca să fie ușor de afișat pe Frontend
                     Username = f.SourceUser.UserName!,
                     ProfilePictureUrl = f.SourceUser.ProfilePictureUrl
                 })
@@ -126,73 +120,65 @@ namespace Backend.Controllers
             return Ok(requests);
         }
 
-        // 4. PUT: api/Follow/accept/{sourceUsername}
+        
         [HttpPut("accept/{sourceUsername}")]
         public async Task<IActionResult> AcceptRequest(string sourceUsername)
         {
             var currentUserIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
             var currentUser = await _userManager.FindByIdAsync(currentUserIdString!);
 
-            if (currentUser == null) return BadRequest("Eroare la identificarea utilizatorului curent.");
+            if (currentUser == null) return BadRequest(new { error = "Error identifying the current user." });
 
-  
             var sourceUser = await _userManager.FindByNameAsync(sourceUsername);
-            if (sourceUser == null) return NotFound("Utilizatorul sursă nu există.");
+            if (sourceUser == null) return NotFound(new { error = "Source user does not exist." });
 
             var relation = await _context.UserFollows
                 .FirstOrDefaultAsync(f => f.SourceUserId == sourceUser.Id && f.TargetUserId == currentUser.Id);
 
-            if (relation == null) return NotFound("Cererea nu există.");
+            if (relation == null) return NotFound(new { error = "Follow request does not exist." });
 
             if (relation.Status == FollowStatus.Accepted)
-                return BadRequest("Cererea este deja acceptată.");
-
+                return BadRequest(new { error = "Request has already been accepted." });
 
             relation.Status = FollowStatus.Accepted;
 
-
-            currentUser.FollowersCount++;   
-            sourceUser.FollowingCount++;   
+            currentUser.FollowersCount++;
+            sourceUser.FollowingCount++;
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = $"Cererea lui {sourceUsername} a fost acceptată." });
+            return Ok(new { message = $"Follow request from {sourceUsername} has been accepted." });
         }
 
-        // 5. DELETE: api/Follow/decline/{sourceUsername}
         [HttpDelete("decline/{sourceUsername}")]
         public async Task<IActionResult> DeclineRequest(string sourceUsername)
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             var sourceUser = await _userManager.FindByNameAsync(sourceUsername);
-            if (sourceUser == null) return NotFound("Utilizatorul nu există.");
+            if (sourceUser == null) return NotFound(new { error = "User does not exist." });
 
             var relation = await _context.UserFollows
                 .FirstOrDefaultAsync(f => f.SourceUserId == sourceUser.Id && f.TargetUserId == currentUserId);
 
-            if (relation == null) return NotFound("Cererea nu există.");
+            if (relation == null) return NotFound(new { error = "Follow request does not exist." });
 
-            _context.UserFollows.Remove(relation);
+            _context.UserFollows.Remove(relation); 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = $"Cererea lui {sourceUsername} a fost respinsă." });
+            return Ok(new { message = $"Follow request from {sourceUsername} has been declined." });
         }
 
-        // 6. GET: api/Follow/status/{targetUsername}
         [HttpGet("status/{targetUsername}")]
         public async Task<IActionResult> GetFollowStatus(string targetUsername)
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // Căutăm userul țintă
             var targetUser = await _userManager.FindByNameAsync(targetUsername);
-            if (targetUser == null) return NotFound("Utilizatorul nu există.");
+            if (targetUser == null) return NotFound(new { error = "User does not exist." });
 
             if (currentUserId == targetUser.Id) return Ok(new { status = "Self" });
 
-            // Verificăm relația folosind ID-urile
             var relation = await _context.UserFollows
                .FindAsync(currentUserId, targetUser.Id);
 

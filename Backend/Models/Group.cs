@@ -8,19 +8,20 @@ namespace Backend.Models
         [Key]
         public int Id { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Group must have a name!")]
         [MaxLength(100)]
-        public string Name { get; set; }
+        public required string Name { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Group must have a description!")]
         [MaxLength(500)]
-        public string Description { get; set; }
+        public required string Description { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // Moderatorul Grupului (Cel care l-a creat)
-        [ForeignKey("Owner")]
-        public string OwnerId { get; set; }
-        public ApplicationUser Owner { get; set; }
+        [Required(ErrorMessage = "Group must have an owner.")]
+        public required string OwnerId { get; set; }
+
+        [ForeignKey("OwnerId")]
+        public virtual ApplicationUser Owner { get; set; } = default!;
     }
 }

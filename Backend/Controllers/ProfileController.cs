@@ -25,28 +25,20 @@ namespace Backend.Controllers
             _userManager = userManager;
             _webHostEnvironment = webHostEnvironment;
             _context = context;
-            _aiService = aiService; 
+            _aiService = aiService;
         }
-
-        private string GenerateRandomId()
-        {
-            Random random = new Random();
-            long randomNumber = random.Next(1000000000) + 1000000000L; 
-            return randomNumber.ToString();
-        }
-
 
         [HttpGet]
         public async Task<IActionResult> GetProfile()
         {
-
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var user = await _userManager.FindByIdAsync(userId!);
-            if (user == null) return NotFound("User not found.");
+
+            if (user == null) return NotFound(new { error = "User not found." });
 
             var response = new GetProfileUserResponseDTO
             {
-                Name = user.FullName, // Asumi ca ai adaugat FullName in DTO conform codului tau anterior, sau il scoti daca da eroare
+                Name = user.FullName,
                 Username = user.UserName!,
                 Email = user.Email!,
                 ProfilePictureUrl = user.ProfilePictureUrl,
@@ -59,23 +51,18 @@ namespace Backend.Controllers
             return Ok(response);
         }
 
-
         [HttpGet("{username}")]
         public async Task<IActionResult> GetProfileOfUser(string username)
         {
-            Console.WriteLine("--------------------------------------------------");
-            Console.WriteLine(username);
-            Console.WriteLine("--------------------------------------------------");
-
             if (string.IsNullOrEmpty(username))
             {
-                return BadRequest("Username is required");
+                return BadRequest(new { error = "Username is required." });
             }
 
             var user = await _userManager.Users
                 .FirstOrDefaultAsync(u => u.UserName!.ToLower() == username.ToLower());
 
-            if (user == null) return NotFound($"User {username} not found");
+            if (user == null) return NotFound(new { error = $"User '{username}' not found." });
 
             var response = new GetProfileUserResponseDTO
             {
@@ -99,35 +86,22 @@ namespace Backend.Controllers
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            // Pasul 1: Luăm userul inițial
             var user = await _userManager.FindByIdAsync(userId!);
-            if (user == null) return NotFound("User not found.");
 
-            // --- A. ACTUALIZARE USERNAME (O facem separat și salvăm) ---
+            if (user == null) return NotFound(new { error = "User not found." });
+
+            bool hasChanges = false;
+
             if (!string.IsNullOrWhiteSpace(dto.Username) && dto.Username != user.UserName)
             {
                 var existingUser = await _userManager.FindByNameAsync(dto.Username);
-                // Verificăm să nu fie luat de altcineva
                 if (existingUser != null && existingUser.Id != user.Id)
                 {
-                    return BadRequest(new { message = $"Numele de utilizator '{dto.Username}' este deja folosit." });
+                    return BadRequest(new { error = $"The username '{dto.Username}' is already in use." });
                 }
-
-                // Această funcție face update, normalizează numele și salvează în DB automat
-                var setUserNameResult = await _userManager.SetUserNameAsync(user, dto.Username);
-
-                if (!setUserNameResult.Succeeded)
-                {
-                    return BadRequest(setUserNameResult.Errors);
-                }
-
-                user = await _userManager.FindByIdAsync(userId!);
+                user.UserName = dto.Username;
+                hasChanges = true;
             }
-
-            // --- B. ACTUALIZARE RESTUL DATELOR ---
-
-            bool hasChanges = false; // Optimizare: salvăm doar dacă am schimbat ceva aici
 
             if (dto.Privacy.HasValue && user.IsPrivate != dto.Privacy.Value)
             {
@@ -137,13 +111,12 @@ namespace Backend.Controllers
 
             if (dto.Description != null && user.Description != dto.Description)
             {
-                // --- FILTRARE AI ---
                 bool isSafe = await _aiService.IsContentSafeAsync(dto.Description);
                 if (!isSafe)
                 {
-                    return BadRequest("Descrierea profilului conține termeni nepotriviți. Te rugăm să reformulezi.");
+                    return BadRequest(new { error = "The profile description contains inappropriate terms. Please reformulate." });
                 }
-                // -------------------
+
                 user.Description = dto.Description;
                 hasChanges = true;
             }
@@ -154,17 +127,15 @@ namespace Backend.Controllers
                 hasChanges = true;
             }
 
-            // --- C. SALVARE FINALĂ (Doar dacă e nevoie) ---
             if (hasChanges)
             {
                 var result = await _userManager.UpdateAsync(user);
                 if (!result.Succeeded) return BadRequest(result.Errors);
             }
 
-            // Returnăm datele actualizate
             return Ok(new
             {
-                message = "Profil actualizat cu succes!",
+                message = "Profile updated successfully!",
                 username = user.UserName,
                 privacy = user.IsPrivate,
                 description = user.Description,
@@ -178,10 +149,8 @@ namespace Backend.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var user = await _userManager.FindByIdAsync(userId!);
 
-            if (user == null) return NotFound("User not found.");
+            if (user == null) return NotFound(new { error = "User not found." });
 
-
-            //Stergem manual userul
             var follows = _context.UserFollows
                 .Where(f => f.SourceUserId == userId || f.TargetUserId == userId);
             _context.UserFollows.RemoveRange(follows);
@@ -192,82 +161,56 @@ namespace Backend.Controllers
 
             if (result.Succeeded)
             {
-                return Ok(new { message = "Contul și toate datele asociate au fost șterse." });
+                return Ok(new { message = "Account and all associated data have been deleted successfully." });
             }
             return BadRequest(result.Errors);
         }
 
 
         [HttpGet("allUsers/{searchValue?}")]
-        public async Task<IActionResult> GetAllUsers(string searchValue)
+        public async Task<IActionResult> GetAllUsers(string? searchValue)
         {
-            List<GetAllProfilesDTO> users;
+            IQueryable<ApplicationUser> query = _userManager.Users.AsNoTracking();
 
-            if (string.IsNullOrEmpty(searchValue))
+            if (!string.IsNullOrEmpty(searchValue))
             {
-                users = await _userManager.Users
-                                    .AsNoTracking()
-                                    .Select(u => new GetAllProfilesDTO
-                                    {
-                                        name = u.FullName,
-                                        username = u.UserName,
-                                        ProfilePictureUrl = u.ProfilePictureUrl,
-                                    })
-                                    .Take(30)
-                                    .ToListAsync();
-            }
-            else
-            {
-                users = await _userManager.Users
-                                    .AsNoTracking()
-                                    .Where(u => u.UserName.Contains(searchValue) || (u.FirstName + " " + u.LastName).Contains(searchValue))
-                                    .Select(u => new GetAllProfilesDTO
-                                    {
-                                        name = u.FullName,
-                                        username = u.UserName,
-                                        ProfilePictureUrl = u.ProfilePictureUrl,
-                                    })
-                                    .Take(30)
-                                    .ToListAsync();
+                query = query.Where(u => u.UserName!.Contains(searchValue) ||
+                                       (u.FirstName + " " + u.LastName).Contains(searchValue));
             }
 
+            var users = await query
+                .Select(u => new GetAllProfilesDTO
+                {
+                    name = u.FullName,
+                    username = u.UserName!,
+                    ProfilePictureUrl = u.ProfilePictureUrl,
+                })
+                .Take(30)
+                .ToListAsync();
 
-
-            if (users == null)
-            {
-                return Ok(new List<GetAllProfilesDTO>());
-            }
-
-            return Ok(users);
+            return Ok(users ?? new List<GetAllProfilesDTO>());
         }
-
 
         [HttpPost("upload_image")]
         [Consumes("multipart/form-data")]
         [ApiExplorerSettings(IgnoreApi = true)]
         public async Task<IActionResult> UploadImage(IFormFile image_path)
         {
-
-            Console.WriteLine("--------------------------------------------------");
-            Console.WriteLine("DEBUG: UploadImage method hit. Attempting to use be_assets.");
-            Console.WriteLine("--------------------------------------------------");
-
             if (image_path == null || image_path.Length == 0)
             {
-                return BadRequest("Nu a fost furnizat niciun fișier.");
+                return BadRequest(new { error = "No file provided." });
             }
 
             if (!image_path.ContentType.StartsWith("image/"))
             {
-                return BadRequest("File type is wrong and should be: image/");
+                return BadRequest(new { error = "Invalid file type. Please upload an image." });
             }
 
-            string uniqueId = this.GenerateRandomId();
+
             string extension = Path.GetExtension(image_path.FileName);
-            string fileName = uniqueId + extension;
+            string fileName = $"{Guid.NewGuid()}{extension}";
 
             string relativePath = $"/be_assets/img/profile/{fileName}";
-
             string targetFolder = Path.Combine(_webHostEnvironment.WebRootPath, "be_assets", "img", "profile");
             string physicalPath = Path.Combine(targetFolder, fileName);
 
@@ -287,39 +230,8 @@ namespace Backend.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    $"Eroare la salvarea fișierului: {ex.Message}");
+                return StatusCode(500, new { error = $"Error saving the file: {ex.Message}" });
             }
-        }
-
-
-        [NonAction]
-        public async Task<IActionResult> GetFollowers()
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var user = await _userManager.FindByIdAsync(userId!);
-            if (user == null) return NotFound("User not found.");
-            var followers = _context.UserFollows
-                .Where(f => f.TargetUserId == userId && f.Status == FollowStatus.Accepted)
-                .Select(f => f.SourceUserId)
-                .ToList();
-            var followerDetails = new List<GetProfileUserResponseDTO>();
-            foreach (var followerId in followers)
-            {
-                var followerUser = await _userManager.FindByIdAsync(followerId);
-                if (followerUser != null)
-                {
-                    followerDetails.Add(new GetProfileUserResponseDTO
-                    {
-                        Username = followerUser.UserName!,
-                        Email = followerUser.Email!,
-                        ProfilePictureUrl = followerUser.ProfilePictureUrl,
-                        Privacy = followerUser.IsPrivate,
-                        Description = followerUser.Description
-                    });
-                }
-            }
-            return Ok(followerDetails);
         }
     }
 }
