@@ -99,16 +99,20 @@ namespace Backend.Controllers
                 {
                     return BadRequest(new { error = $"The username '{dto.Username}' is already in use." });
                 }
+
+                // We update the property directly; UpdateAsync will handle normalization
                 user.UserName = dto.Username;
                 hasChanges = true;
             }
 
+        
             if (dto.Privacy.HasValue && user.IsPrivate != dto.Privacy.Value)
             {
                 user.IsPrivate = dto.Privacy.Value;
                 hasChanges = true;
             }
 
+ 
             if (dto.Description != null && user.Description != dto.Description)
             {
                 bool isSafe = await _aiService.IsContentSafeAsync(dto.Description);
@@ -127,8 +131,10 @@ namespace Backend.Controllers
                 hasChanges = true;
             }
 
+           
             if (hasChanges)
             {
+                // UpdateAsync handles both the basic fields and the NormalizedUserName
                 var result = await _userManager.UpdateAsync(user);
                 if (!result.Succeeded) return BadRequest(result.Errors);
             }

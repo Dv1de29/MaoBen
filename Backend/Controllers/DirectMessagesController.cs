@@ -1,4 +1,5 @@
 ﻿using Backend.Data;
+using Backend.DTOs; // Asigura-te ca namespace-ul e corect pentru DTOs
 using Backend.DTOs.DirectMessageController;
 using Backend.Hubs;
 using Backend.Models;
@@ -67,40 +68,50 @@ namespace Backend.Controllers
             _context.DirectMessages.Add(message);
             await _context.SaveChangesAsync();
 
-            var messageDto = new DirectMessageResponseDTO
+            // --- Get Sender Info for Response ---
+            // MAO: Folosim FindByIdAsync, dar e bine sa verificam null chiar daca e putin probabil
+            var sender = await _userManager.FindByIdAsync(currentUserId);
+            if (sender == null) return Unauthorized();
+
+            // --- Prepare DTO ---
+            var messageDto = new DirectMessageDto
             {
                 Id = message.Id,
                 Content = message.Content,
                 CreatedAt = message.CreatedAt,
-                SenderId = message.SenderId!,
-                SenderUsername = message.Sender.UserName!,
-                SenderProfilePictureUrl= message.Sender.ProfilePictureUrl,
-                IsMine = false
+                SenderId = sender.Id,
+                SenderUsername = sender.UserName ?? "Unknown",
+                SenderProfilePictureUrl = sender.ProfilePictureUrl,
+                IsMine = false // Pentru receiver, acest mesaj NU este "al lui" (IsMine se calculeaza pe client sau la fetch)
             };
 
-            var conversationId = GenerateConversationId(currentUserId!, recipient.Id);
+            // --- Real-Time SignalR ---
+            var conversationId = GenerateConversationId(currentUserId, recipient.Id);
+
+            // MAO: Trimitem DTO-ul complet prin SignalR ca frontend-ul să îl poată afișa direct
             await _hubContext.Clients.Group(conversationId).SendAsync("ReceiveDirectMessage", messageDto);
 
-            return CreatedAtAction(nameof(GetMessage), new { messageId = message.Id }, new
+            return CreatedAtAction(nameof(SendMessage), new { id = message.Id }, new
             {
                 id = message.Id,
                 message = "Message sent successfully!"
             });
         }
 
-
         [HttpGet("conversation/{otherUsername}")]
         public async Task<IActionResult> GetConversation(string otherUsername)
         {
             var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(currentUserId)) return Unauthorized();
+
             var otherUser = await _userManager.FindByNameAsync(otherUsername);
+            if (otherUser == null) return NotFound(new { error = "Utilizatorul nu există." });
 
-            if (otherUser == null)
-                return NotFound(new { error = "Target user not found." });
-
+            // MAO: Folosim AsNoTracking() pentru performanta la citire
             var messages = await _context.DirectMessages
+                .AsNoTracking()
                 .Where(m => (m.SenderId == currentUserId && m.ReceiverId == otherUser.Id) ||
-                           (m.SenderId == otherUser.Id && m.ReceiverId == currentUserId))
+                            (m.SenderId == otherUser.Id && m.ReceiverId == currentUserId))
                 .Include(m => m.Sender)
                 .OrderBy(m => m.CreatedAt)
                 .Select(m => new DirectMessageResponseDTO
@@ -118,65 +129,90 @@ namespace Backend.Controllers
             return Ok(messages);
         }
 
-
+        // MAO: OPTIMIZARE MAJORA AICI
         [HttpGet("conversations")]
         public async Task<IActionResult> GetConversations()
         {
             var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(currentUserId)) return Unauthorized();
 
-            var conversationPartners = await _context.DirectMessages
+            // MAO: Strategie Optimizată
+            // 1. Luăm toate mesajele unde suntem implicați.
+            // 2. Grupăm după "celălalt utilizator" (dacă eu sunt sender, grupez după receiver, și invers).
+            // 3. Selectăm cel mai recent mesaj din fiecare grup.
+            // 4. Facem Join cu tabela de Users pentru a lua detaliile profilului dintr-un singur foc.
+
+            var conversationsQuery = _context.DirectMessages
+                .AsNoTracking()
                 .Where(m => m.SenderId == currentUserId || m.ReceiverId == currentUserId)
-                .Select(m => m.SenderId == currentUserId ? m.ReceiverId : m.SenderId)
-                .Distinct()
-                .ToListAsync();
-
-            var conversations = new List<ConversationResponseDTO>();
-
-            foreach (var partnerId in conversationPartners)
-            {
-                var partner = await _userManager.FindByIdAsync(partnerId);
-                if (partner == null) continue;
-
-                var lastMessage = await _context.DirectMessages
-                    .Where(m => (m.SenderId == currentUserId && m.ReceiverId == partnerId) ||
-                               (m.SenderId == partnerId && m.ReceiverId == currentUserId))
-                    .OrderByDescending(m => m.CreatedAt)
-                    .FirstOrDefaultAsync();
-
-                conversations.Add(new ConversationResponseDTO
+                .GroupBy(m => m.SenderId == currentUserId ? m.ReceiverId : m.SenderId) // Group by the "other" person ID
+                .Select(g => new
                 {
-                    OtherUserId = partner.Id!,
-                    OtherUserUsername = partner.UserName!,
-                    OtherUserProfilePictureUrl = partner.ProfilePictureUrl,
-                    LastMessagePreview = lastMessage?.Content?.Length > 10
-                        ? lastMessage.Content.Substring(0, 10) + "..."
-                        : lastMessage?.Content,
-                    LastMessageTime = lastMessage?.CreatedAt
+                    OtherUserId = g.Key,
+                    LastMessage = g.OrderByDescending(m => m.CreatedAt).FirstOrDefault()
                 });
-            }
-            return Ok(conversations.OrderByDescending(c => c.LastMessageTime));
-        }
 
+            // Executam query-ul pentru a aduce datele despre mesaje (Grouping in EF Core pe SQL complex poate fi tricky, 
+            // uneori e mai sigur sa aducem cheile si apoi sa facem join, dar incercam varianta directa).
+
+            // Nota: EF Core 6/7/8 suporta translarea complexa, dar cea mai sigura metoda performanta e sa luam ID-urile si LastMessage
+            // si apoi sa luam userii. Pentru simplitate si siguranta in EF:
+
+            var rawConversations = await conversationsQuery.ToListAsync();
+
+            if (!rawConversations.Any())
+                return Ok(new List<ConversationDto>());
+
+            // Acum luam detaliile utilizatorilor pentru ID-urile gasite (IN clause query - foarte rapid)
+            var userIds = rawConversations.Select(c => c.OtherUserId).ToList();
+            var users = await _context.Users
+                .Where(u => userIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => u);
+
+            // Construim DTO-ul final in memorie
+            var result = rawConversations
+                .Select(c => {
+                    var userExists = users.TryGetValue(c.OtherUserId, out var partner);
+                    return new ConversationDto
+                    {
+                        OtherUserId = c.OtherUserId,
+                        OtherUserUsername = userExists ? partner!.UserName : "Deleted User",
+                        OtherUserProfilePictureUrl = userExists ? partner!.ProfilePictureUrl : null,
+                        LastMessagePreview = c.LastMessage != null
+                            ? (c.LastMessage.Content.Length > 50 ? c.LastMessage.Content.Substring(0, 50) + "..." : c.LastMessage.Content)
+                            : "",
+                        LastMessageTime = c.LastMessage?.CreatedAt ?? DateTime.MinValue,
+                        UnreadCount = 0 // Logica de unread necesita un camp 'IsRead' in model
+                    };
+                })
+                .OrderByDescending(c => c.LastMessageTime)
+                .ToList();
+
+            return Ok(result);
+        }
 
         [HttpGet("{messageId}")]
         public async Task<IActionResult> GetMessage(int messageId)
         {
             var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             var message = await _context.DirectMessages
-                .Include(m => m.Sender)
-                .FirstOrDefaultAsync(m => m.Id == messageId && (m.SenderId == currentUserId || m.ReceiverId == currentUserId));
+               .AsNoTracking()
+               .Include(m => m.Sender)
+               .FirstOrDefaultAsync(m => m.Id == messageId);
 
-            if (message == null) return NotFound(new { error = "Message not found or access denied." });
+            if (message == null) return NotFound();
 
-            return Ok(new DirectMessageResponseDTO
+            // Optional: Verificam daca userul are voie sa vada mesajul (e sender sau receiver)
+            if (message.SenderId != currentUserId && message.ReceiverId != currentUserId)
+                return Forbid();
+
+            return Ok(new DirectMessageDto
             {
                 Id = message.Id,
                 Content = message.Content,
                 CreatedAt = message.CreatedAt,
-                SenderId = message.SenderId!,
-                SenderUsername = message.Sender?.UserName!,
-                SenderProfilePictureUrl = message.Sender?.ProfilePictureUrl!,
+                SenderUsername = message.Sender?.UserName ?? "Unknown",
                 IsMine = message.SenderId == currentUserId
             });
         }
@@ -185,54 +221,27 @@ namespace Backend.Controllers
         public async Task<IActionResult> DeleteMessage(int messageId)
         {
             var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            // Nu folosim AsNoTracking aici pentru ca vrem sa stergem entitatea
             var message = await _context.DirectMessages.FindAsync(messageId);
 
-            if (message == null) return NotFound(new { error = "Message not found." });
+            if (message == null) return NotFound();
 
-            if (message.SenderId != currentUserId && User.IsInRole("Admin"))
-                return StatusCode(403, new { error = "You are only allowed to delete your own messages." });
+            // Check ownership
+            if (message.SenderId != currentUserId)
+                return StatusCode(403, new { error = "Nu poți șterge mesajele altora." });
 
             _context.DirectMessages.Remove(message);
             await _context.SaveChangesAsync();
 
-            var conversationId = GenerateConversationId(message.SenderId, message.ReceiverId);
-            await _hubContext.Clients.Group(conversationId).SendAsync("MessageDeleted", new { messageId });
+            // Notificam grupul SignalR
+            var conversationId = GenerateConversationId(currentUserId, message.ReceiverId);
+            await _hubContext.Clients.Group(conversationId).SendAsync("MessageDeleted", messageId); // Trimitem doar ID-ul, nu obiect
 
-            return Ok(new { message = "Message deleted successfully." });
+            return Ok(new { message = "Mesaj șters." });
         }
 
-
-        [HttpPost("{messageId}/edit")]
-        public async Task<IActionResult> EditMessage(int messageId, [FromBody] SendDirectMessageDTO dto)
-        {
-            if (string.IsNullOrWhiteSpace(dto.Content))
-                return BadRequest(new { error = "Updated content cannot be empty." });
-
-            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var message = await _context.DirectMessages.FindAsync(messageId);
-
-            if (message == null) return NotFound(new { error = "Message not found." });
-
-            if (message.SenderId != currentUserId && User.IsInRole("Admin"))
-                return StatusCode(403, new { error = "You are only allowed to edit your own messages." });
-
-
-            //AI Verification for profanity - optional, I want to test the real-time speed and notifications
-            
-            //bool isSafe = await _aiService.IsContentSafeAsync(dto.Content);
-            //if (!isSafe)
-            //    return BadRequest(new { error = "Your content contains inappropriate terms. Please reformulate." });
-
-            message.Content = dto.Content.Trim();
-            _context.DirectMessages.Update(message);
-            await _context.SaveChangesAsync();
-
-            var conversationId = GenerateConversationId(message.SenderId, message.ReceiverId);
-            await _hubContext.Clients.Group(conversationId).SendAsync("MessageEdited", new { messageId, content = message.Content });
-
-            return Ok(new { message = "Message updated successfully.", content = message.Content });
-        }
-        [NonAction]
+        // Helper pentru ID unic de conversatie (alfabetic)
         private static string GenerateConversationId(string userId1, string userId2)
         {
             var sorted = new[] { userId1, userId2 }.OrderBy(x => x).ToArray();

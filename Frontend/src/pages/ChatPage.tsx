@@ -1,151 +1,262 @@
 import { useState, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
+import { HubConnection, HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
-    faMagnifyingGlass, 
-    faPhone, 
-    faVideo, 
-    faEllipsisVertical, 
-    faPaperclip, 
-    faImage, 
-    faPaperPlane, 
-    faFaceSmile 
+    faMagnifyingGlass, faPhone, faVideo, faEllipsisVertical, 
+    faPaperclip, faImage, faPaperPlane, faFaceSmile 
 } from "@fortawesome/free-solid-svg-icons";
 
 import '../styles/ChatPage.css';
 
+// --- 1. Types matching Backend DTOs ---
 
-import type { ConversationType } from "../assets/types";
-
-
-// --- Types ---
-interface User {
-    id: string;
-    name: string;
-    image: string;
-    isOnline: boolean;
-}
-
-interface Conversation {
-    id: string;
-    user: User;
-    lastMessage: string;
-    timeAgo: string;
+interface ConversationDto {
+    otherUserId: string;
+    otherUserUsername: string; // Used for API calls
+    otherUserProfilePictureUrl: string;
+    lastMessagePreview: string;
+    lastMessageTime: string;
     unreadCount: number;
 }
 
-interface Message {
+interface DirectMessageDto {
     id: number;
-    text: string;
-    time: string;
-    isMe: boolean; // True if I sent it, False if received
+    content: string;
+    createdAt: string;
+    senderId: string;
+    senderUsername: string;
+    senderProfilePictureUrl: string;
+    isMine: boolean;
 }
 
-// --- Mock Data (Matching the Image) ---
-const MOCK_CONVERSATIONS: Conversation[] = [
-    {
-        id: "1",
-        user: { id: "u1", name: "Sarah Johnson", image: "https://i.pravatar.cc/150?u=1", isOnline: true },
-        lastMessage: "That sounds great! Let's meet up tomorrow.",
-        timeAgo: "2m ago",
-        unreadCount: 2
-    },
-    {
-        id: "2",
-        user: { id: "u2", name: "Michael Chen", image: "https://i.pravatar.cc/150?u=2", isOnline: true },
-        lastMessage: "Did you see the latest update?",
-        timeAgo: "15m ago",
-        unreadCount: 0
-    },
-    {
-        id: "3",
-        user: { id: "u3", name: "Emma Rodriguez", image: "https://i.pravatar.cc/150?u=3", isOnline: false },
-        lastMessage: "Thanks for your help earlier!",
-        timeAgo: "1h ago",
-        unreadCount: 0
-    },
-    {
-        id: "4",
-        user: { id: "u4", name: "James Wilson", image: "https://i.pravatar.cc/150?u=4", isOnline: false },
-        lastMessage: "Looking forward to the event!",
-        timeAgo: "3h ago",
-        unreadCount: 1
-    },
-    
-];
-
-// Mock messages for Sarah (Active Chat)
-const INITIAL_MESSAGES: Message[] = [
-    { id: 1, text: "Hey! How are you doing?", time: "1:25 PM", isMe: false },
-    { id: 2, text: "I'm doing great, thanks! How about you?", time: "1:27 PM", isMe: true },
-    { id: 3, text: "Pretty good! I wanted to talk to you about the project we discussed last week.", time: "1:28 PM", isMe: false },
-];
-
 function ChatPage() {
-    // State for the list of users (conversations)
-    const [conversations, setConversations] = useState<Conversation[]>(MOCK_CONVERSATIONS);
+    const location = useLocation(); // To handle redirect from Profile Page
+
+    // --- State ---
+    const [conversations, setConversations] = useState<ConversationDto[]>([]);
+    // We use USERNAME now because your backend API expects usernames for GET/POST
+    const [activeChatUsername, setActiveChatUsername] = useState<string | null>(null);
     
-    // State for the currently selected chat
-    const [activeChatId, setActiveChatId] = useState<string>("1");
-    
-    // State for messages in the active chat
-    const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
+    const [messages, setMessages] = useState<DirectMessageDto[]>([]);
     const [inputText, setInputText] = useState("");
+    const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
-    // Auto-scroll to bottom ref
+    // Auto-scroll ref
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const connectionRef = useRef<HubConnection | null>(null);
 
-    const activeConversation = conversations.find(c => c.id === activeChatId);
+    const activeConversation = conversations.find(c => c.otherUserUsername === activeChatUsername);
 
-
+    
     useEffect(() => {
-        const token = sessionStorage.getItem("userToken");
+        if (!activeConversation) return;
 
-        if ( !token ) return
+        const newConnection = new HubConnectionBuilder()
+                .withUrl("/directMessageHub", {
+                    accessTokenFactory: () => sessionStorage.getItem("userToken") || ""
+                })
+                .withAutomaticReconnect()
+                .configureLogging(LogLevel.Information)
+                .build();
 
-        const fetchConv = async () => {
-            try{
-                const res = await fetch('/api/DirectMessages', {
-                    method: "GET",
-                    headers: { 'Authorization' : `Bearer ${token}` },
+        newConnection.start()
+                .then(() => {
+                    console.log("Connected to SignalR Hub");
+                })
+                .catch(err => console.error("SignalR Connection Error: ", err));
+
+        newConnection.on("ReceiveDirectMessage", (message: DirectMessageDto) => {
+            const isRelevant = message.senderUsername === activeChatUsername || message.isMine;
+            
+            if (isRelevant){
+                setMessages(prev => {
+                    if ( prev.some(m => m.id === message.id)) return prev;
+                    return [...prev, message];
                 })
 
-                if ( !res.ok ){
-                    throw new Error(`Response Error: ${res.status}, ${res.statusText}`);
-                }
-
-                const data = await res.json();
-
-
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth"});
             }
-            catch(e){
-                console.error("Error at getting conv: ", e);
-            }
-        }
-    }, []);
+        });
 
+        newConnection.on("MessageDeleted", ({ messageId }: {messageId: number}) => {
+            setMessages(prev => prev.filter(m => m.id !== messageId));
+        })
 
+        connectionRef.current = newConnection;
 
-    // Auto-scroll to bottom when messages change
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages]);
-
-    const handleSendMessage = () => {
-        if (!inputText.trim()) return;
-
-        const newMessage: Message = {
-            id: Date.now(),
-            text: inputText,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            isMe: true
+        return () => {
+            newConnection.stop();
         };
 
-        setMessages([...messages, newMessage]);
-        setInputText("");
+    }, [activeChatUsername]);
+
+
+    useEffect(() => {
+        const fetchConversations = async () => {
+            const token = sessionStorage.getItem("userToken");
+            if (!token) return;
+
+            try {
+                const res = await fetch('/api/DirectMessages/conversations', {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+
+                if (!res.ok) throw new Error(`Failed to load conversations: ${res.status}, ${res.statusText}`);
+                let data: ConversationDto[] = await res.json();
+                
+                // --- Handle "Start Chat" from Profile Page ---
+                if (location.state?.targetUser) {
+                    const target = location.state.targetUser; // { username, profilePictureUrl, ... }
+                    
+                    // Check if this user is already in our list
+                    const exists = data.find(c => c.otherUserUsername === target.username);
+
+                    if (exists) {
+                        // If exists, just set them as active
+                        setActiveChatUsername(target.username);
+                    } else {
+                        // If not, create a temporary conversation object so UI shows it
+                        const newConv: ConversationDto = {
+                            otherUserId: target.id || "temp_id",
+                            otherUserUsername: target.username,
+                            otherUserProfilePictureUrl: target.profilePictureUrl,
+                            lastMessagePreview: "Start a conversation",
+                            lastMessageTime: new Date().toISOString(),
+                            unreadCount: 0
+                        };
+                        // Add to top of list
+                        data = [newConv, ...data];
+                        setActiveChatUsername(target.username);
+                    }
+                    // Clear history state so refresh doesn't trigger this again
+                    window.history.replaceState({}, document.title);
+                } else if (data.length > 0 && !activeChatUsername) {
+                    // Default: Select first chat if nothing active
+                    setActiveChatUsername(data[0].otherUserUsername);
+                }
+
+                setConversations(data);
+
+            } catch (e) {
+                console.error("Error loading conversations:", e);
+            }
+        };
+
+        fetchConversations();
+    }, [location.state]); // Re-run if location state changes (though mostly runs on mount)
+
+
+    // --- 3. Fetch Messages when Active Chat Changes ---
+    useEffect(() => {
+        if (!activeChatUsername) return;
+
+        const fetchMessages = async () => {
+            setIsLoadingMessages(true);
+            const token = sessionStorage.getItem("userToken");
+            if (!token) return;
+
+            try {
+                // Using USERNAME in URL as requested
+                const res = await fetch(`/api/DirectMessages/conversation/${activeChatUsername}`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+
+                if (!res.ok) throw new Error("Failed to load messages");
+                const data: DirectMessageDto[] = await res.json();
+                
+                setMessages(data);
+            } catch (e) {
+                console.error("Error loading messages:", e);
+            } finally {
+                setIsLoadingMessages(false);
+            }
+        };
+
+        fetchMessages();
+    }, [activeChatUsername]);
+
+    // Auto-scroll
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages, isLoadingMessages]);
+
+
+    // --- 4. Send Message Logic (Optimistic) ---
+    const handleSendMessage = async () => {
+        if (!inputText.trim() || !activeChatUsername) return;
+
+        const textToSend = inputText;
+        const tempId = Date.now(); // Temp ID for UI
+
+        // 1. Optimistic Update
+        const optimisticMsg: DirectMessageDto = {
+            id: tempId,
+            content: textToSend,
+            createdAt: new Date().toISOString(),
+            senderId: "me",
+            senderUsername: "Me",
+            senderProfilePictureUrl: "", // Current user pic (could get from context)
+            isMine: true
+        };
+        
+        setMessages(prev => [...prev, optimisticMsg]);
+        setInputText(""); 
+
+        const token = sessionStorage.getItem("userToken");
+
+        try {
+            // 2. API Call (Using Username)
+            const res = await fetch(`/api/DirectMessages/send/${activeChatUsername}`, {
+                method: "POST",
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content: textToSend })
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || "Failed to send");
+            }
+
+            // 3. Success: Server returns the created message (with real ID)
+            // Note: Depending on your Controller return, you might need to adjust this
+            // If controller returns `CreatedAtAction`, `res.json()` is the body.
+            // Assuming your controller returns { id, content, createdAt, ... } inside the body or a wrapper
+            
+            // Refetch or just keep optimistic (Simpler for now: keep optimistic, 
+            // but ideally we swap ID here if we need to edit/delete later).
+            
+        } catch (e) {
+            console.error("Error sending message:", e);
+            alert("Failed to send message.");
+            // 4. Rollback on error
+            setMessages(prev => prev.filter(m => m.id !== tempId));
+            setInputText(textToSend); 
+        }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') handleSendMessage();
+    };
+
+    // --- Helpers ---
+    const formatTime = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    const formatTimeAgo = (dateString: string) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+        
+        if (diffInSeconds < 60) return "Just now";
+        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+        return `${Math.floor(diffInSeconds / 86400)}d ago`;
     };
 
     return (
@@ -163,22 +274,21 @@ function ChatPage() {
                 <div className="conversation-list">
                     {conversations.map((conv) => (
                         <div 
-                            key={conv.id} 
-                            className={`conversation-item ${activeChatId === conv.id ? 'active' : ''}`}
-                            onClick={() => setActiveChatId(conv.id)}
+                            key={conv.otherUserUsername} 
+                            className={`conversation-item ${activeChatUsername === conv.otherUserUsername ? 'active' : ''}`}
+                            onClick={() => setActiveChatUsername(conv.otherUserUsername)}
                         >
                             <div className="avatar-wrapper">
-                                <img src={conv.user.image} alt={conv.user.name} />
-                                {conv.user.isOnline && <span className="status-dot online"></span>}
+                                <img src={conv.otherUserProfilePictureUrl || "/assets/img/no_user.png"} alt={conv.otherUserUsername} />
                             </div>
                             
                             <div className="conv-info">
                                 <div className="conv-top">
-                                    <span className="conv-name">{conv.user.name}</span>
-                                    <span className="conv-time">{conv.timeAgo}</span>
+                                    <span className="conv-name">{conv.otherUserUsername}</span>
+                                    <span className="conv-time">{conv.lastMessageTime ? formatTimeAgo(conv.lastMessageTime) : ''}</span>
                                 </div>
                                 <div className="conv-bottom">
-                                    <p className="conv-last-msg">{conv.lastMessage}</p>
+                                    <p className="conv-last-msg">{conv.lastMessagePreview}</p>
                                     {conv.unreadCount > 0 && (
                                         <span className="unread-badge">{conv.unreadCount}</span>
                                     )}
@@ -186,23 +296,22 @@ function ChatPage() {
                             </div>
                         </div>
                     ))}
+                    {conversations.length === 0 && <div className="no-conv-placeholder">No conversations yet</div>}
                 </div>
             </aside>
 
             {/* --- RIGHT SIDE: ACTIVE CHAT --- */}
             <main className="chat-window">
-                {activeConversation ? (
+                {activeChatUsername && activeConversation ? (
                     <>
                         {/* Chat Header */}
                         <header className="chat-header">
                             <div className="chat-user-profile">
                                 <div className="avatar-wrapper small">
-                                    <img src={activeConversation.user.image} alt="" />
-                                    {activeConversation.user.isOnline && <span className="status-dot online"></span>}
+                                    <img src={activeConversation.otherUserProfilePictureUrl || "/assets/img/no_user.png"} alt="" />
                                 </div>
                                 <div className="chat-user-details">
-                                    <h3>{activeConversation.user.name}</h3>
-                                    <span className="status-text">{activeConversation.user.isOnline ? "Active now" : "Offline"}</span>
+                                    <h3>{activeConversation.otherUserUsername}</h3>
                                 </div>
                             </div>
                             <div className="chat-header-actions">
@@ -214,16 +323,22 @@ function ChatPage() {
 
                         {/* Messages Area */}
                         <div className="messages-area">
+                            {isLoadingMessages && <div className="loading-msg">Loading messages...</div>}
+                            
                             {messages.map((msg) => (
-                                <div key={msg.id} className={`message-row ${msg.isMe ? 'me' : 'them'}`}>
-                                    {!msg.isMe && (
-                                        <img src={activeConversation.user.image} alt="avatar" className="msg-avatar" />
+                                <div key={msg.id} className={`message-row ${msg.isMine ? 'me' : 'them'}`}>
+                                    {!msg.isMine && (
+                                        <img 
+                                            src={msg.senderProfilePictureUrl || activeConversation.otherUserProfilePictureUrl || "/assets/img/no_user.png"} 
+                                            alt="avatar" 
+                                            className="msg-avatar" 
+                                        />
                                     )}
                                     <div className="message-content">
                                         <div className="message-bubble">
-                                            {msg.text}
+                                            {msg.content}
                                         </div>
-                                        <span className="message-time">{msg.time}</span>
+                                        <span className="message-time">{formatTime(msg.createdAt)}</span>
                                     </div>
                                 </div>
                             ))}
@@ -252,7 +367,7 @@ function ChatPage() {
                         </div>
                     </>
                 ) : (
-                    <div className="no-chat-selected">Select a conversation to start chatting</div>
+                    <div className="no-chat-selected">Select a conversation or start a new one</div>
                 )}
             </main>
         </div>
