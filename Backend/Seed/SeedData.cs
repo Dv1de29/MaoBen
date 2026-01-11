@@ -15,36 +15,6 @@ namespace Backend.Seed
             var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
 
-            var adminEmail = "admin@micro.social";
-            if (await userManager.FindByEmailAsync(adminEmail) == null)
-            {
-                var adminUser = new ApplicationUser
-                {
-                    FirstName = "Sistem",
-                    LastName = "Admin",
-                    UserName = "admin_master",
-                    Email = adminEmail,
-                    EmailConfirmed = true,
-                    Description = "Cont de administrare pentru gestionarea conținutului platformei.",
-                    ProfilePictureUrl = "be_assets/img/admin_default.jpg" 
-                };
-
-                var createAdminResult = await userManager.CreateAsync(adminUser, "Admin123!");
-                if (createAdminResult.Succeeded)
-                {
-                    await userManager.AddToRoleAsync(adminUser, "Admin"); // Atribuire rol Admin 
-                }
-            }
-            string[] roleNames = { "Admin", "User" };
-            foreach (var roleName in roleNames)
-            {
-                var roleExist = await roleManager.RoleExistsAsync(roleName);
-                if (!roleExist)
-                {
-                    // Create the roles and wait for them to save
-                    await roleManager.CreateAsync(new IdentityRole(roleName));
-                }
-            }
 
             // Define the 5 users to be created
             var usersToSeed = new List<UserSeedData>

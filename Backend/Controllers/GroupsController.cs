@@ -160,7 +160,6 @@ namespace Backend.Controllers
                 .Include(gm => gm.User)
                 .Select(gm => new PendingRequestsResponseDTO
                 {
-                    UserId = gm.UserId,
                     Username = gm.User.UserName!,
                     ProfilePictureUrl = gm.User.ProfilePictureUrl
                 })
@@ -169,44 +168,74 @@ namespace Backend.Controllers
             return Ok(requests);
         }
 
-        [HttpPut("{id}/accept/{userId}")]
-        public async Task<IActionResult> AcceptMember(int id, string userId)
+        // PUT: api/Groups/{id}/accept/{username}
+        [HttpPut("{id}/accept/{username}")]
+        public async Task<IActionResult> AcceptMember(int id, string username)
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrWhiteSpace(currentUserId))
                 return BadRequest(new { error = "User identification error." });
+
             var group = await _context.Groups.FindAsync(id);
+            if (group == null)
+                return NotFound(new { error = "Group not found." });
 
-            if (group == null) return NotFound(new { error = "Group not found." });
-            if (group.OwnerId != currentUserId || User.IsInRole("Admin")) return StatusCode(403, new { error = "You are not the moderator of this group." });
+            bool isAdmin = User.IsInRole("Admin");
+            bool isModerator = group.OwnerId == currentUserId;
 
-            var member = await _context.GroupMembers.FindAsync(id, userId);
-            if (member == null) return NotFound(new { error = "Join request not found." });
+            if (!isModerator && !isAdmin)
+            {
+                return StatusCode(403, new { error = "Only the group moderator or an administrator can accept members." });
+            }
+
+            var targetUser = await _userManager.FindByNameAsync(username);
+            if (targetUser == null)
+                return NotFound(new { error = $"User '{username}' not found." });
+
+            var member = await _context.GroupMembers.FindAsync(id, targetUser.Id);
+            if (member == null)
+                return NotFound(new { error = "Join request not found for this user." });
+
+            if (member.Status == GroupMemberStatus.Accepted)
+            {
+                return BadRequest(new { error = "User is already an accepted member of this group." });
+            }
 
             member.Status = GroupMemberStatus.Accepted;
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "User accepted into the group." });
+            return Ok(new { message = $"User '{username}' has been accepted into the group." });
         }
 
-        [HttpDelete("{id}/members/{userId}")]
-        public async Task<IActionResult> RemoveMember(int id, string userId)
+        // DELETE: api/Groups/{id}/members/{username}
+        [HttpDelete("{id}/members/{username}")]
+        public async Task<IActionResult> RemoveMember(int id, string username)
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrWhiteSpace(currentUserId))
                 return BadRequest(new { error = "User identification error." });
+
             var group = await _context.Groups.FindAsync(id);
             if (group == null) return NotFound(new { error = "Group not found." });
 
-            var memberToRemove = await _context.GroupMembers.FindAsync(id, userId);
-            if (memberToRemove == null) return NotFound(new { error = "User is not a member of this group." });
+            var targetUser = await _userManager.FindByNameAsync(username);
+            if (targetUser == null)
+                return NotFound(new { error = $"User '{username}' not found." });
 
-            if (currentUserId != userId && (currentUserId != group.OwnerId || User.IsInRole("Admin")))
+            var memberToRemove = await _context.GroupMembers.FindAsync(id, targetUser.Id);
+            if (memberToRemove == null)
+                return NotFound(new { error = "This user is not a member of this group." });
+
+            bool isAdmin = User.IsInRole("Admin");
+            bool isGroupModerator = group.OwnerId == currentUserId;
+            bool isSelf = targetUser.Id == currentUserId;
+
+            if (!isSelf && !isGroupModerator && !isAdmin)
             {
                 return StatusCode(403, new { error = "You do not have permission to remove this member." });
             }
 
-            if (userId == group.OwnerId)
+            if (targetUser.Id == group.OwnerId)
             {
                 return BadRequest(new { error = "The moderator cannot leave the group. The group must be deleted instead." });
             }
@@ -214,7 +243,7 @@ namespace Backend.Controllers
             _context.GroupMembers.Remove(memberToRemove);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Member has left or was removed from the group." });
+            return Ok(new { message = isSelf ? "You have left the group." : $"User '{username}' was removed from the group." });
         }
 
         [HttpGet("{id}/messages")]
