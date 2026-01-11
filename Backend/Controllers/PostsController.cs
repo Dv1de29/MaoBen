@@ -1,5 +1,5 @@
 ﻿using Backend.Data;
-using Backend.DTOs;
+using Backend.DTOs.PostsController;
 using Backend.Models;
 using Backend.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -25,13 +25,6 @@ namespace Backend.Controllers
             _aiService = aiService;
         }
 
-        private string GenerateRandomId()
-        {
-            Random random = new Random();
-            long randomNumber = random.Next(1000000000) + 1000000000L; // Asigură 10 cifre
-            return randomNumber.ToString();
-        }
-
         [HttpGet("{id}")]
         public async Task<IActionResult> GetPostID(int id)
         {
@@ -39,7 +32,7 @@ namespace Backend.Controllers
 
             var post = await _context.Posts
                 .Include(p => p.User)
-                .Select(p => new GetPostsWithUser
+                .Select(p => new GetPostsWithUserResponseDTO
                 {
                     Id = p.Id,
                     OwnerID = p.OwnerID,
@@ -48,7 +41,7 @@ namespace Backend.Controllers
                     Image_path = p.Image_path,
                     Description = p.Description,
                     Created = p.Created,
-                    Username = p.User.UserName,
+                    Username = p.User.UserName!,
                     user_image_path = p.User.ProfilePictureUrl,
                     Has_liked = _context.PostLikes.Any(pl => pl.PostId == p.Id && pl.UserId == currentUserId),
                 })
@@ -56,7 +49,7 @@ namespace Backend.Controllers
 
             if (post == null)
             {
-                return NotFound();
+                return NotFound(new { error = "Post not found." });
             }
 
             return Ok(post);
@@ -66,18 +59,18 @@ namespace Backend.Controllers
         [HttpGet("my_posts")]
         public async Task<IActionResult> GetMyPosts()
         {
-            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized("User ID not found in token.");
+                return Unauthorized(new { error = "User ID not found in token." });
             }
 
             var myPosts = await _context.Posts
                 .Include(p => p.User)
                 .Where(p => p.OwnerID == userId)
                 .OrderByDescending(p => p.Created)
-                .Select(p => new GetPostsWithUser
+                .Select(p => new GetPostsWithUserResponseDTO
                 {
                     Id = p.Id,
                     OwnerID = p.OwnerID,
@@ -86,7 +79,7 @@ namespace Backend.Controllers
                     Image_path = p.Image_path,
                     Description = p.Description,
                     Created = p.Created,
-                    Username = p.User.UserName,
+                    Username = p.User.UserName!,
                     user_image_path = p.User.ProfilePictureUrl,
                     Has_liked = _context.PostLikes.Any(pl => pl.PostId == p.Id && pl.UserId == userId),
                 })
@@ -95,30 +88,24 @@ namespace Backend.Controllers
             return Ok(myPosts);
         }
 
-        // --- FEED PERSONALIZAT ---
         [Authorize]
         [HttpGet("feed")]
         public async Task<IActionResult> GetFeed([FromQuery] int count = 20, [FromQuery] int skip = 0)
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // 1. Găsim ID-urile celor pe care îi urmărim
             var followingIds = await _context.UserFollows
                 .Where(f => f.SourceUserId == currentUserId && f.Status == FollowStatus.Accepted)
                 .Select(f => f.TargetUserId)
                 .ToListAsync();
 
-            // 2. Adăugăm și ID-ul nostru
-            //followingIds.Add(currentUserId!);
-
-            // 3. Luăm postările
             var posts = await _context.Posts
                 .Include(p => p.User)
                 .Where(p => followingIds.Contains(p.OwnerID))
                 .OrderByDescending(p => p.Created)
                 .Skip(skip)
                 .Take(count)
-                .Select(p => new GetPostsWithUser
+                .Select(p => new GetPostsWithUserResponseDTO
                 {
                     Id = p.Id,
                     OwnerID = p.OwnerID,
@@ -127,7 +114,7 @@ namespace Backend.Controllers
                     Image_path = p.Image_path,
                     Description = p.Description,
                     Created = p.Created,
-                    Username = p.User.UserName,
+                    Username = p.User.UserName!,
                     user_image_path = p.User.ProfilePictureUrl,
                     Has_liked = _context.PostLikes.Any(pl => pl.PostId == p.Id && pl.UserId == currentUserId),
                 })
@@ -137,10 +124,7 @@ namespace Backend.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetRecentPosts(
-            [FromQuery] int count = 20,
-            [FromQuery] int skip = 0
-            )
+        public async Task<IActionResult> GetRecentPosts([FromQuery] int count = 20, [FromQuery] int skip = 0)
         {
             int limit = Math.Min(count, MaxPostsLimit);
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -150,7 +134,7 @@ namespace Backend.Controllers
                 .OrderByDescending(p => p.Created)
                 .Skip(skip)
                 .Take(limit)
-                .Select(p => new GetPostsWithUser
+                .Select(p => new GetPostsWithUserResponseDTO
                 {
                     Id = p.Id,
                     OwnerID = p.OwnerID,
@@ -159,31 +143,26 @@ namespace Backend.Controllers
                     Image_path = p.Image_path,
                     Description = p.Description,
                     Created = p.Created,
-                    Username = p.User.UserName,
+                    Username = p.User.UserName!,
                     user_image_path = p.User.ProfilePictureUrl,
                     Has_liked = _context.PostLikes.Any(pl => pl.PostId == p.Id && pl.UserId == currentUserId),
                 })
                 .ToListAsync();
 
-            if (posts == null || !posts.Any())
-            {
-                return Ok(new List<GetPostsWithUser>());
-            }
-
-            return Ok(posts);
+            return Ok(posts ?? new List<GetPostsWithUserResponseDTO>());
         }
+
 
         [HttpGet("ByOwner/{ownerUsername}")]
         public async Task<IActionResult> GetPostsByOwnerId(string ownerUsername)
         {
-            if (string.IsNullOrEmpty(ownerUsername)) return BadRequest("Username cannot be empty.");
+            if (string.IsNullOrEmpty(ownerUsername)) return BadRequest(new { error = "Username cannot be empty." });
 
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var targetUser = await _context.Users.FirstOrDefaultAsync(u => u.UserName == ownerUsername);
 
-            if (targetUser == null) return NotFound("User not found.");
+            if (targetUser == null) return NotFound(new { error = "User not found." });
 
-            // --- LOGICA DE PRIVACY ---
             bool canView = false;
             if (!targetUser.IsPrivate) canView = true;
             else if (targetUser.Id == currentUserId) canView = true;
@@ -194,13 +173,13 @@ namespace Backend.Controllers
                 if (isFollowing) canView = true;
             }
 
-            if (!canView) return StatusCode(403, "Cont privat.");
+            if (!canView) return StatusCode(403, new { error = "This account is private." });
 
             var posts = await _context.Posts
                 .Include(p => p.User)
                 .Where(p => p.User.UserName!.ToLower() == ownerUsername.ToLower())
                 .OrderByDescending(p => p.Created)
-                .Select(p => new GetPostsWithUser
+                .Select(p => new GetPostsWithUserResponseDTO
                 {
                     Id = p.Id,
                     OwnerID = p.OwnerID,
@@ -209,7 +188,7 @@ namespace Backend.Controllers
                     Image_path = p.Image_path,
                     Description = p.Description,
                     Created = p.Created,
-                    Username = p.User.UserName,
+                    Username = p.User.UserName!,
                     user_image_path = p.User.ProfilePictureUrl,
                     Has_liked = _context.PostLikes.Any(pl => pl.PostId == p.Id && pl.UserId == currentUserId),
                 })
@@ -224,43 +203,34 @@ namespace Backend.Controllers
         [ApiExplorerSettings(IgnoreApi = true)]
         public async Task<IActionResult> CreatePost([FromForm] CreatePostDTO dto)
         {
-            // --- VALIDARE AI: Google Gemini ---
             if (!string.IsNullOrWhiteSpace(dto.Description))
             {
                 bool isSafe = await _aiService.IsContentSafeAsync(dto.Description);
                 if (!isSafe)
                 {
-                    return BadRequest("Descrierea conține termeni nepotriviți. Te rugăm să reformulezi.");
+                    return BadRequest(new { error = "Your content contains inappropriate terms. Please reformulate." });
                 }
             }
-            // ----------------------------------
 
             if (dto.Image == null || dto.Image.Length == 0)
             {
-                return BadRequest("Image is required.");
+                return BadRequest(new { error = "An image or video file is required." });
             }
 
             if (!dto.Image.ContentType.StartsWith("image/") && !dto.Image.ContentType.StartsWith("video/"))
             {
-                Console.WriteLine(dto.Image.ContentType);
-                return BadRequest("File type is wrong and should be image/ or video/");
+                return BadRequest(new { error = "Unsupported file type. Please upload an image or video." });
             }
 
-            string uniqueId = this.GenerateRandomId();
             string extension = Path.GetExtension(dto.Image.FileName);
-            string fileName = uniqueId + extension;
-
+            string fileName = $"{Guid.NewGuid()}{extension}";
             string relativePath = $"/be_assets/img/posts/{fileName}";
 
             string targetFolder = Path.Combine(_webHostEnvironment.WebRootPath, "be_assets", "img", "posts");
             string physicalPath = Path.Combine(targetFolder, fileName);
 
-            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized("User ID not found in token.");
-            }
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized(new { error = "Authentication session expired." });
 
             var newPost = new Posts
             {
@@ -272,10 +242,7 @@ namespace Backend.Controllers
 
             try
             {
-                if (!Directory.Exists(targetFolder))
-                {
-                    Directory.CreateDirectory(targetFolder);
-                }
+                if (!Directory.Exists(targetFolder)) Directory.CreateDirectory(targetFolder);
 
                 using (var stream = new FileStream(physicalPath, FileMode.Create))
                 {
@@ -285,12 +252,11 @@ namespace Backend.Controllers
                 _context.Posts.Add(newPost);
                 await _context.SaveChangesAsync();
 
-                return Ok(new { message = "Post created!", postId = newPost.Id, imageUrl = relativePath });
+                return Ok(new { message = "Post created successfully!", postId = newPost.Id, imageUrl = relativePath });
             }
             catch (Exception ex)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    $"Eroare la salvarea postarii: {ex.Message}");
+                return StatusCode(500, new { error = $"Server error while saving post: {ex.Message}" });
             }
         }
 
@@ -299,46 +265,35 @@ namespace Backend.Controllers
         public async Task<IActionResult> DeletePost(int id)
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(currentUserId)) return Unauthorized();
-
             var post = await _context.Posts.FindAsync(id);
-            if (post == null)
-            {
-                return NotFound("Postarea nu a fost găsită.");
-            }
 
-            // 4. LOGICA DE PERMISIUNI (Admin sau Owner)
+            if (post == null) return NotFound(new { error = "Post not found." });
+
             bool isOwner = post.OwnerID == currentUserId;
-            bool isAdmin = User.IsInRole("Admin") || User.IsInRole("Administrator");
+            bool isAdmin = User.IsInRole("Admin");
 
             if (!isOwner && !isAdmin)
             {
-                return StatusCode(403, "Nu ai permisiunea de a șterge această postare.");
+                return StatusCode(403, new { error = "You do not have permission to delete this post." });
             }
 
-            // 5. Șterge și fișierul fizic
             try
             {
                 if (!string.IsNullOrEmpty(post.Image_path))
                 {
-                    string relativePath = post.Image_path.TrimStart('/', '\\');
-                    string absolutePath = Path.Combine(_webHostEnvironment.WebRootPath, relativePath);
-
-                    if (System.IO.File.Exists(absolutePath))
-                    {
-                        System.IO.File.Delete(absolutePath);
-                    }
+                    string absolutePath = Path.Combine(_webHostEnvironment.WebRootPath, post.Image_path.TrimStart('/', '\\'));
+                    if (System.IO.File.Exists(absolutePath)) System.IO.File.Delete(absolutePath);
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Nu s-a putut șterge fișierul: {ex.Message}");
+                Console.WriteLine($"File deletion failed: {ex.Message}");
             }
 
             _context.Posts.Remove(post);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Postarea a fost ștersă cu succes." });
+            return Ok(new { message = "Post deleted successfully." });
         }
 
         [Authorize]
@@ -347,26 +302,19 @@ namespace Backend.Controllers
         public async Task<IActionResult> UpdatePost(int id, [FromForm] EditPostDto dto)
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(currentUserId)) return Unauthorized();
-
             var post = await _context.Posts.FindAsync(id);
-            if (post == null) return NotFound("Postarea nu a fost găsită.");
 
-            // Doar proprietarul poate edita (Adminul doar sterge)
+            if (post == null) return NotFound(new { error = "Post not found." });
+
             if (post.OwnerID != currentUserId)
             {
-                return StatusCode(403, "Nu ai dreptul să editezi această postare.");
+                return StatusCode(403, new { error = "You can only edit your own posts." });
             }
 
             if (dto.Description != null)
             {
-                // --- VALIDARE AI PENTRU EDITARE ---
                 bool isSafe = await _aiService.IsContentSafeAsync(dto.Description);
-                if (!isSafe)
-                {
-                    return BadRequest("Descrierea conține termeni nepotriviți.");
-                }
-                // ----------------------------------
+                if (!isSafe) return BadRequest(new { error = "Updated description contains inappropriate terms." });
                 post.Description = dto.Description;
             }
 
@@ -374,31 +322,20 @@ namespace Backend.Controllers
             {
                 if (!dto.Image.ContentType.StartsWith("image/") && !dto.Image.ContentType.StartsWith("video/"))
                 {
-                    return BadRequest("Fișierul trebuie să fie o imagine.");
+                    return BadRequest(new { error = "Invalid file type." });
                 }
 
                 try
                 {
-                    // A. ȘTERGEM POZA VECHE
                     if (!string.IsNullOrEmpty(post.Image_path))
                     {
-                        string oldRelativePath = post.Image_path.TrimStart('/', '\\');
-                        string oldAbsolutePath = Path.Combine(_webHostEnvironment.WebRootPath, oldRelativePath);
-
-                        if (System.IO.File.Exists(oldAbsolutePath))
-                        {
-                            System.IO.File.Delete(oldAbsolutePath);
-                        }
+                        string oldPath = Path.Combine(_webHostEnvironment.WebRootPath, post.Image_path.TrimStart('/', '\\'));
+                        if (System.IO.File.Exists(oldPath)) System.IO.File.Delete(oldPath);
                     }
 
-                    // B. SALVĂM POZA NOUĂ
-                    string uniqueId = GenerateRandomId();
                     string extension = Path.GetExtension(dto.Image.FileName);
-                    string newFileName = uniqueId + extension;
-
+                    string newFileName = $"{Guid.NewGuid()}{extension}";
                     string targetFolder = Path.Combine(_webHostEnvironment.WebRootPath, "be_assets", "img", "posts");
-                    if (!Directory.Exists(targetFolder)) Directory.CreateDirectory(targetFolder);
-
                     string newPhysicalPath = Path.Combine(targetFolder, newFileName);
 
                     using (var stream = new FileStream(newPhysicalPath, FileMode.Create))
@@ -410,7 +347,7 @@ namespace Backend.Controllers
                 }
                 catch (Exception ex)
                 {
-                    return StatusCode(500, $"Eroare la actualizarea imaginii: {ex.Message}");
+                    return StatusCode(500, new { error = $"Error updating media: {ex.Message}" });
                 }
             }
 
@@ -418,7 +355,7 @@ namespace Backend.Controllers
 
             return Ok(new
             {
-                message = "Postarea a fost actualizată.",
+                message = "Post updated successfully.",
                 updatedDescription = post.Description,
                 updatedImagePath = post.Image_path
             });

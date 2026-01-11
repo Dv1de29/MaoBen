@@ -25,21 +25,16 @@ namespace Backend.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterUserDTO dto)
         {
-            // Validare format DTO
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            //Gasire email existent pentru ca emailul e unic pentru utilizator
             var existingUser = await _userManager.FindByEmailAsync(dto.Email);
             if (existingUser != null) return BadRequest(new { message = "Email is already in use." });
 
-            // Validare username
             if (dto.Username.Contains('@')) return BadRequest(new { message = "Username cannot contain '@' character." });
 
-            //Gasire username existent
             var existingUsername = await _userManager.FindByNameAsync(dto.Username);
             if (existingUsername != null) return BadRequest(new { message = "Username is already taken." });
 
-            // Creare utilizator nou
             var user = new ApplicationUser
             {
                 UserName = dto.Username,
@@ -73,10 +68,8 @@ namespace Backend.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginUserDTO dto)
         {
-            // Validare format DTO
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            // Gasire utilizator dupa email sau username
             ApplicationUser? user;
             if (dto.UsernameOrEmail.Contains('@'))
             { 
@@ -112,7 +105,6 @@ namespace Backend.Controllers
         [NonAction]
         private async Task<string> GenerateJwtToken(ApplicationUser user)
         {
-            //Configurare cheie de securitate
             var jwtSettings = _configuration.GetSection("Jwt");
             var key = Encoding.ASCII.GetBytes(jwtSettings["Key"]!);
 

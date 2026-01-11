@@ -3,45 +3,28 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Backend.Models
 {
-    /// <summary>
-    /// Reprezentează un mesaj direct între doi utilizatori
-    /// - Nu este necesar ca utilizatorii să se urmărească
-    /// - Ambii utilizatori pot vedea conversația
-    /// - Doar autorul poate edita/șterge mesajul
-    /// </summary>
     public class DirectMessage
     {
         [Key]
         public int Id { get; set; }
 
         [Required]
-        [MaxLength(1000)]
-        public string Content { get; set; } = string.Empty;
+        [MaxLength(500)]
+        public required string Content { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // --- Foreign Keys & Relationships ---
 
-        /// <summary>
-        /// ID-ul utilizatorului care a trimis mesajul
-        /// </summary>
-        [ForeignKey("Sender")]
-        public string SenderId { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Message must be associated with a sender.")]
+        public required string SenderId { get; set; }
 
-        /// <summary>
-        /// Referință la utilizatorul care a trimis mesajul
-        /// </summary>
-        public ApplicationUser? Sender { get; set; }
+        [ForeignKey("SenderId")]
+        public virtual ApplicationUser Sender { get; set; } = default!;
 
-        /// <summary>
-        /// ID-ul utilizatorului care primește mesajul
-        /// </summary>
-        [ForeignKey("Receiver")]
-        public string ReceiverId { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Message must be associated with a receiver.")]
+        public required string ReceiverId { get; set; }
 
-        /// <summary>
-        /// Referință la utilizatorul care primește mesajul
-        /// </summary>
-        public ApplicationUser? Receiver { get; set; }
+        [ForeignKey("ReceiverId")]
+        public virtual ApplicationUser Receiver { get; set; } = default!;
     }
 }
