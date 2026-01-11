@@ -76,7 +76,7 @@ builder.Services.AddAuthentication(options =>
             var path = context.HttpContext.Request.Path;
 
             // Dacă cererea este către Hub-ul nostru și are token în URL
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/chatHub"))
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/directMessageHub"))
             {
                 context.Token = accessToken;
             }
@@ -112,11 +112,24 @@ builder.Services.AddSwaggerGen(option =>
     });
 });
 
+
+builder.Services.AddCors(option =>
+{
+    option.AddPolicy("ReactPolicy", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+
 // ==========================================
 
 var app = builder.Build();
 
 app.UseStaticFiles();
+
 
 // Activeaza tool-ul de testare a api-urilor doar in development
 if (app.Environment.IsDevelopment())
@@ -140,14 +153,16 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+
+app.UseRouting();
+
 app.UseCors("AllowReact");
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-// <--- 3. MAPARE ENDPOINT SIGNALR --->
-app.MapHub<ChatHub>("/chatHub");
 app.MapHub<DirectMessageHub>("/directMessageHub");
+
+
 app.Run();
